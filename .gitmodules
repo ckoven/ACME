@@ -1,0 +1,3 @@
+[submodule "models/ice/mpas-cice/model"]
+	path = models/ice/mpas-cice/model
+	url = git@github.com:akturner/MPAS
