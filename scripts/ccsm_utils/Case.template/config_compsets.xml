@@ -16,7 +16,7 @@ Where
    TIME = Time period (e.g. 2000, 20TR, RCP8...)
    ATM  = [CAM4, CAM5, DATM, SATM, XATM]
    LND  = [CLM40, CLM45, CLM50, DLND, SLND, XLND]
-   ICE  = [CICE, DICE, SICE, SICE]
+   ICE  = [CICE, DICE, SICE, SICE, MPSI]
    OCN  = [POP2, DOCN, SOCN, XOCN,AQUAP,MPAS]
    ROF  = [RTM, DROF, SROF, XROF]
    GLC  = [CISM1, CISM2S, CISM2P, SGLC, XGLC]
@@ -168,9 +168,10 @@ value of RUN_STARTDATE will be date2.
 
 <!-- D compsets -->
 
-<COMPSET sname="D_NORMAL_YEAR" alias="D"    >2000_DATM%NYF_SLND_CICE_DOCN%SOM_DROF%NYF_SGLC_SWAV</COMPSET>
-<COMPSET sname="D_INTERANNUAL" alias="DIAF" >2000_DATM%IAF_SLND_CICE_DOCN%SOM_DROF%IAF_SGLC_SWAV</COMPSET>
-<COMPSET sname="D_TEST"        alias="DTEST">2000_DATM%NYF_SLND_CICE_DOCN%SOM_DROF%NYF_SGLC_SWAV_TEST </COMPSET>
+<COMPSET sname="D_NORMAL_YEAR"  alias="D"    >2000_DATM%NYF_SLND_CICE_DOCN%SOM_DROF%NYF_SGLC_SWAV</COMPSET>
+<COMPSET sname="D_INTERANNUAL"  alias="DIAF" >2000_DATM%IAF_SLND_CICE_DOCN%SOM_DROF%IAF_SGLC_SWAV</COMPSET>
+<COMPSET sname="D_TEST"         alias="DTEST">2000_DATM%NYF_SLND_CICE_DOCN%SOM_DROF%NYF_SGLC_SWAV_TEST </COMPSET>
+<COMPSET sname="DM_NORMAL_YEAR" alias="DM"   >2000_DATM%NYF_SLND_MPSI_DOCN%SOM_DROF%NYF_SGLC_SWAV</COMPSET>
 
 <!-- G compsets -->
 
@@ -413,6 +414,7 @@ value of RUN_STARTDATE will be date2.
 <COMP_ICE compset="_DICE">dice</COMP_ICE>
 <COMP_ICE compset="_SICE">sice</COMP_ICE> 
 <COMP_ICE compset="_XICE">xice</COMP_ICE> 
+<COMP_ICE compset="_MPSI">mpsi</COMP_ICE> 
 
 <COMP_OCN compset="_POP" >pop2</COMP_OCN> 
 <COMP_OCN compset="_DOCN">docn</COMP_OCN>
@@ -449,6 +451,7 @@ value of RUN_STARTDATE will be date2.
 <desc compset="_DICE">DICE:</desc>
 <desc compset="_SICE">SICE:</desc>
 <desc compset="_XICE">XICE:</desc>
+<desc compset="_MPSI">MPSI:</desc>
 
 <desc compset="_POP2">POP2:</desc>
 <desc compset="_DOCN">DOCN:</desc>
