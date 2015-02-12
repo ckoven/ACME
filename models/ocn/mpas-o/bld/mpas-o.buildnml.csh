@@ -15,25 +15,26 @@ set inst_string = ""
 set STREAM_NAME = "streams.ocean_forward"
 set NML_NAME = "mpaso_in"
 
-if (-e $CASEROOT/user_nl_mpas-o${inst_string})                                    \
-       $UTILROOT/Tools/user_nlcreate                                              \
-             -user_nl_file $CASEROOT/user_nl_mpas-o${inst_string}                 \
-             -namelist_name mpaso_inparm >! $CASEBUILD/mpas-oconf/cesm_namelist 
+if (-e $CASEROOT/user_nl_mpaso${inst_string}) then
+	$UTILROOT/Tools/user_nlcreate                                           \
+		-user_nl_file $CASEROOT/user_nl_mpaso${inst_string}                 \
+		-namelist_name mpaso_inparm >! $CASEBUILD/mpas-oconf/cesm_namelist 
+endif
 
 # Check to see if "-preview" flag should be passed
 if ( $?PREVIEW_NML ) then
-  set PREVIEW_FLAG = "-preview"
+	set PREVIEW_FLAG = "-preview"
 else
-  set PREVIEW_FLAG = ""
+	set PREVIEW_FLAG = ""
 endif
 
 # Check to see if build-namelist exists in SourceMods
 if (-e $CASEROOT/SourceMods/src.mpas-o/build-namelist) then
-  set BLD_NML_DIR = $CASEROOT/SourceMods/src.mpas-o
-  set CFG_FLAG = "-cfg_dir $CODEROOT/ocn/mpas-o/bld"
+	set BLD_NML_DIR = $CASEROOT/SourceMods/src.mpas-o
+	set CFG_FLAG = "-cfg_dir $CODEROOT/ocn/mpas-o/bld"
 else
-  set BLD_NML_DIR = $CODEROOT/ocn/mpas-o/bld
-  set CFG_FLAG = ""
+	set BLD_NML_DIR = $CODEROOT/ocn/mpas-o/bld
+	set CFG_FLAG = ""
 endif
 
 # Define input_mesh file and graph prefix for mesh
@@ -383,13 +384,13 @@ EOF
 'EOF'
 endif # Writing streams file
 
-$BLD_NML_DIR/build-namelist $CFG_FLAG $PREVIEW_FLAG                          \
-          -infile $CASEBUILD/mpas-oconf/cesm_namelist                        \
-          -caseroot $CASEROOT                                                \
-          -casebuild $CASEBUILD                                              \
-          -scriptsroot $SCRIPTSROOT                                          \
-          -inst_string "$inst_string"                                        \
-          -ocn_grid "$OCN_GRID" || exit -1  
+$BLD_NML_DIR/build-namelist $CFG_FLAG $PREVIEW_FLAG                        \
+		-infile $CASEBUILD/mpas-oconf/cesm_namelist                        \
+		-caseroot $CASEROOT                                                \
+		-casebuild $CASEBUILD                                              \
+		-scriptsroot $SCRIPTSROOT                                          \
+		-inst_string "$inst_string"                                        \
+		-ocn_grid "$OCN_GRID" || exit -1  
 
 if ( -d ${RUNDIR} ) then
 	cp $CASEBUILD/mpas-oconf/mpaso_in ${RUNDIR}/mpaso_in

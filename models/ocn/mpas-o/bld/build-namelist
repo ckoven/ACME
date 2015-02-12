@@ -286,7 +286,7 @@ if (defined $opts{'infile'}) {
         my $val = $nl_infile->get_variable_value($group, $var);
         my @broken = split(/&/,$var);
         my $check_grp = 0; # If 1, make sure group found in definitions file
-                           # matches that specified in user_nl_mpas-o
+                           # matches that specified in user_nl_mpaso
 
         # if variable has ampersand, truncate it unless it is type derived
         if ($broken[1]) {
@@ -309,14 +309,14 @@ if (defined $opts{'infile'}) {
         $nl_check_var->set_variable_value($group, $var_local,$val);
         eval { $nl_check_valid = $definition->validate($nl_check_var); };
         (not $@) or die <<"EOF";
-** ERROR: either $var_local is not a valid MPAS-O namelist variable or $var_local = $val is not a valid value; please fix user_nl_mpas-o. Note that $var_local may appear in multiple namelists, in which case you need to specify the correct namelist in user_nl_mpas-o using the format $var_local\&namelist_nml = $val, where \&namelist_nml is the mpaso_in namelist containing $var_local.**
+** ERROR: either $var_local is not a valid MPAS-O namelist variable or $var_local = $val is not a valid value; please fix user_nl_mpaso. Note that $var_local may appear in multiple namelists, in which case you need to specify the correct namelist in user_nl_mpaso using the format $var_local\&namelist_nml = $val, where \&namelist_nml is the mpaso_in namelist containing $var_local.**
 EOF
 
-        # If group was specified in user_nl_mpas-o, make sure it matches
+        # If group was specified in user_nl_mpaso, make sure it matches
         # the group in the definitions file.
         my @group_valid = $nl_check_valid->get_group_names();
         ((not $check_grp) or ($broken[1] eq $group_valid[0])) or die <<"EOF";
-** ERROR: $broken[0] is in $group_valid[0], not $broken[1]! Please fix this in user_nl_mpas-o. **
+** ERROR: $broken[0] is in $group_valid[0], not $broken[1]! Please fix this in user_nl_mpaso. **
 EOF
 
         # Add variable to validated namelist
@@ -327,7 +327,7 @@ EOF
     # If preview is desired and something has been changed in $nl_infile_valid,
     # output everything in $nl_infile_valid
     if (($preview == 1) && ($nl_infile_valid->get_group_names)) {
-      print " - The following values have been set in user_nl_mpas-o:\n";
+      print " - The following values have been set in user_nl_mpaso:\n";
       print_nl_to_screen($nl_infile_valid);
     }
     # Merge input values into namelist.  Previously specified values have higher
