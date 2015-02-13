@@ -91,7 +91,7 @@ EOF
 	-->
 	<immutable_stream name="restart"
 					  type="input;output"
-					  filename_template="rst/rst.ocn.$Y-$M-$D_$h.$m.$s.nc"
+					  filename_template="rst.ocn.$Y-$M-$D_$h.$m.$s.nc"
 					  filename_interval="output_interval"
 					  reference_time="0000-01-01_00:00:00"
 					  clobber_mode="truncate"
@@ -105,7 +105,7 @@ EOF
 
 	<stream name="output"
 			type="output"
-			filename_template="hist/hist.ocn.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="hist.ocn.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
@@ -188,7 +188,7 @@ EOF
 
 	<stream name="additional_output"
 			type="none"
-			filename_template="hist/ocn.additional_output.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="ocn.additional_output.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
@@ -212,7 +212,7 @@ EOF
 
 	<stream name="real_world"
 			type="none"
-			filename_template="hist/ocn.real_world_variables.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="ocn.real_world_variables.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
@@ -238,7 +238,7 @@ EOF
 
 	<stream name="averages"
 			type="none"
-			filename_template="hist/ocn.average_variables.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="ocn.average_variables.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
@@ -267,7 +267,7 @@ EOF
 
 	<stream name="Cartesian"
 			type="none"
-			filename_template="hist/ocn.Cartesian_variables.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="ocn.Cartesian_variables.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
@@ -281,7 +281,7 @@ EOF
 
 	<stream name="forcing"
 			type="none"
-			filename_template="hist/ocn.forcing_variables.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="ocn.forcing_variables.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
@@ -328,7 +328,7 @@ EOF
 
 	<stream name="Gent_McWilliams_spherical"
 			type="none"
-			filename_template="hist/ocn.Gent_McWilliams_spherical_variables.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="ocn.Gent_McWilliams_spherical_variables.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
@@ -354,7 +354,7 @@ EOF
 
 	<stream name="Gent_McWilliams_Cartesian"
 			type="none"
-			filename_template="hist/ocn.Gent_McWilliams_Cartesian_variables.$Y-$M-$D_$h.$m.$s.nc"
+			filename_template="ocn.Gent_McWilliams_Cartesian_variables.$Y-$M-$D_$h.$m.$s.nc"
 			filename_interval="01-00-00_00:00:00"
 			reference_time="0000-01-01_00:00:00"
 			clobber_mode="truncate"
