@@ -218,6 +218,9 @@ module CNNitrogenFluxType
      real(r8), pointer :: net_nmin_vr_col                           (:,:)   ! col vertically-resolved net rate of N mineralization (gN/m3/s)
      real(r8), pointer :: net_nmin_col                              (:)     ! col vert-int (diagnostic) net rate of N mineralization (gN/m2/s)
 
+     real(r8), pointer :: sminn_no3_input_vr_col                    (:,:)   !col no3 input, gN/m3/time step
+     real(r8), pointer :: sminn_nh4_input_vr_col                    (:,:)   !col nh4 input, gN/m3/time step
+     real(r8), pointer :: bgc_npool_inputs_vr_col                   (:,:,:) !col organic nitrogen input, gN/m3/time step
      ! ---------- NITRIF_DENITRIF  ---------------------
 
      ! nitrification / denitrification fluxes
@@ -567,6 +570,10 @@ contains
     allocate(this%f_n2o_nit_col               (begc:endc))                   ; this%f_n2o_nit_col                    (:)   = nan
     allocate(this%f_n2o_nit_vr_col            (begc:endc,1:nlevdecomp_full)) ; this%f_n2o_nit_vr_col                 (:,:) = nan
 
+    allocate(this%sminn_no3_input_vr_col      (begc:endc,1:nlevdecomp_full)) ; this%sminn_no3_input_vr_col      (:,:) = nan
+    allocate(this%sminn_nh4_input_vr_col      (begc:endc,1:nlevdecomp_full)) ; this%sminn_nh4_input_vr_col           (:,:) = nan
+    allocate(this%bgc_npool_inputs_vr_col     (begc:endc,1:nlevdecomp_full,4)) ;this%bgc_npool_inputs_vr_col      (:,:,:) = nan
+     
     allocate(this%smin_no3_massdens_vr_col    (begc:endc,1:nlevdecomp_full)) ; this%smin_no3_massdens_vr_col         (:,:) = nan
     allocate(this%soil_bulkdensity_col        (begc:endc,1:nlevdecomp_full)) ; this%soil_bulkdensity_col             (:,:) = nan
     allocate(this%k_nitr_t_vr_col             (begc:endc,1:nlevdecomp_full)) ; this%k_nitr_t_vr_col                  (:,:) = nan
@@ -1184,7 +1191,7 @@ contains
                   avgflag='A', long_name=longname, &
                   ptr_col=data2dptr, default='inactive')
           endif
-
+          
           !-- transfer fluxes (none from terminal pool, if present)
           if ( decomp_cascade_con%cascade_receiver_pool(l) /= 0 ) then
              this%decomp_cascade_ntransfer_vr_col(begc:endc,:,l) = spval
@@ -1203,6 +1210,49 @@ contains
        endif
     end do
 
+
+    this%sminn_no3_input_vr_col(begc:endc,:) = spval
+    data2dptr => this%sminn_no3_input_vr_col(:,:)
+    fieldname='SMINN_NO3_INPUT_vr'
+    call hist_addfld_decomp (fname=fieldname, units='gN/m^3/s',  type2d='levdcmp', &
+        avgflag='A', long_name=longname, &
+        ptr_col=data2dptr, default='inactive')
+
+    this%sminn_nh4_input_vr_col(begc:endc,:)  = spval
+    data2dptr => this%sminn_nh4_input_vr_col(:,:)
+    fieldname='SMINN_NH4_INPUT_vr'
+    call hist_addfld_decomp (fname=fieldname, units='gN/m^3/s',  type2d='levdcmp', &
+        avgflag='A', long_name=longname, &
+        ptr_col=data2dptr, default='inactive')
+    
+    this%bgc_npool_inputs_vr_col(begc:endc, :, 1) = spval    
+    data2dptr => this%bgc_npool_inputs_vr_col(:,:,1)
+    fieldname='BGC_NPOOL_INPUT_'//' METAB_'//'vr'
+    call hist_addfld_decomp (fname=fieldname, units='gN/m^3/s',  type2d='levdcmp', &
+        avgflag='A', long_name=longname, &
+        ptr_col=data2dptr, default='inactive')
+
+    this%bgc_npool_inputs_vr_col(begc:endc, :, 2) = spval    
+    data2dptr => this%bgc_npool_inputs_vr_col(:,:,2)
+    fieldname='BGC_NPOOL_INPUT_'//'_CEL_'//'vr'
+    call hist_addfld_decomp (fname=fieldname, units='gN/m^3/s',  type2d='levdcmp', &
+        avgflag='A', long_name=longname, &
+        ptr_col=data2dptr, default='inactive')
+
+    this%bgc_npool_inputs_vr_col(begc:endc, :, 3) = spval    
+    data2dptr => this%bgc_npool_inputs_vr_col(:,:,3)
+    fieldname='BGC_NPOOL_INPUT_'//'_LIG_'//'vr'
+    call hist_addfld_decomp (fname=fieldname, units='gN/m^3/s',  type2d='levdcmp', &
+        avgflag='A', long_name=longname, &
+        ptr_col=data2dptr, default='inactive')
+
+    this%bgc_npool_inputs_vr_col(begc:endc, :, 4) = spval    
+    data2dptr => this%bgc_npool_inputs_vr_col(:,:,4)
+    fieldname='BGC_NPOOL_INPUT_'//'_CWD_'//'vr'
+    call hist_addfld_decomp (fname=fieldname, units='gN/m^3/s',  type2d='levdcmp', &
+        avgflag='A', long_name=longname, &
+        ptr_col=data2dptr, default='inactive')
+    
     this%denit_col(begc:endc) = spval
     call hist_addfld1d (fname='DENIT', units='gN/m^2/s', &
          avgflag='A', long_name='total rate of denitrification', &
@@ -2378,9 +2428,10 @@ contains
        this%supplement_to_sminn_col(c) = 0._r8
        this%som_n_leached_col(c)       = 0._r8
     end do
-
-    ! vertically integrate decomposing N cascade fluxes and soil mineral N fluxes associated with decomposition cascade
-    do k = 1, ndecomp_cascade_transitions
+    
+    if(.not. is_active_betr_bgc)then
+      ! vertically integrate decomposing N cascade fluxes and soil mineral N fluxes associated with decomposition cascade
+      do k = 1, ndecomp_cascade_transitions
        do j = 1,nlevdecomp
           do fc = 1,num_soilc
              c = filter_soilc(fc)
@@ -2394,9 +2445,9 @@ contains
                   this%decomp_cascade_sminn_flux_vr_col(c,j,k) * dzsoi_decomp(j) 
           end do
        end do
-    end do
+      end do
 
-    if (.not. use_nitrif_denitrif) then
+      if (.not. use_nitrif_denitrif) then
        ! vertically integrate each denitrification flux
        do l = 1, ndecomp_cascade_transitions
           do j = 1, nlevdecomp
@@ -2440,7 +2491,7 @@ contains
                this%sminn_to_denit_excess_col(c)
        end do
 
-    else
+      else
 
        ! vertically integrate NO3 NH4 N2O fluxes and pools
        do j = 1, nlevdecomp
@@ -2489,8 +2540,9 @@ contains
           this%denit_col(c) = this%f_denit_col(c)
        end do
 
-    end if
-
+      end if
+    endif
+    
     ! vertically integrate column-level fire N losses
     do k = 1, ndecomp_pools
        do j = 1, nlevdecomp
