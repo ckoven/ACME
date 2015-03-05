@@ -1412,7 +1412,7 @@ NAME:
 
     my $atm_grid, my $lnd_grid, my $ice_grid, my $ocn_grid;
     my $rof_grid, my $glc_grid, my $wav_grid;
-    my $cism_grid, my $mask_grid; 
+    my $icesheet_grid, my $mask_grid;
 
 # first determine if there is any compset attribute for this grid
     $found = 0;
@@ -1483,10 +1483,10 @@ NAME:
     $grid_longname =~ /(oi%)(.+)(_r%)/; $ocn_grid  = $2; $ice_grid = $2;
     $grid_longname =~ /(r%)(.+)(_m%)/ ; $rof_grid  = $2; 
     $grid_longname =~ /(m%)(.+)(_g%)/ ; $mask_grid = $2; 
-    $grid_longname =~ /(g%)(.+)(_w%)/ ; $cism_grid = $2; 
+    $grid_longname =~ /(g%)(.+)(_w%)/ ; $icesheet_grid = $2;
     $grid_longname =~ /(w%)(.+)$/     ; $wav_grid  = $2; 
-    if ($cism_grid ne 'null') {
-	$cfg_ref->set('CISM_GRID',$cism_grid);
+    if ($icesheet_grid ne 'null') {
+	$cfg_ref->set('ICESHEET_GRID',$icesheet_grid);
     }
 
 # ========================================================
@@ -1582,8 +1582,8 @@ NAME:
 	if ($mask_grid eq $hgrid) {
 	    $cfg_ref->set('MASK_GRID',$gridname);
 	}
-	if ($cism_grid eq $hgrid) {
-	    $cfg_ref->set('CISM_GRID',$gridname);
+	if ($icesheet_grid eq $hgrid) {
+	    $cfg_ref->set('ICESHEET_GRID',$gridname);
 	}
     }
 
@@ -1893,9 +1893,9 @@ NAME:
     $nxw = $cfg_ref->get('WAV_NX'); $nyw= $cfg_ref->get('WAV_NY'); 
     $grw = $cfg_ref->get('WAV_GRID');
 
-    if ($compset_longname =~ /CISM/) {
-	$grid = $cfg_ref->get('CISM_GRID');
-	print "  CISM_GRID = $grid \n";  
+    if ( ($compset_longname =~ /CISM/) || ($compset_longname =~ /MPASLI/) ) {
+	$grid = $cfg_ref->get('ICESHEET_GRID');
+	print "  ICESHEET_GRID = $grid \n";
     }
 
     # output to standard out
