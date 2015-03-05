@@ -51,8 +51,6 @@ module glc_comp_mct
   public :: glc_final_mct
 
   ! Private data interfaces
-  private :: glc_export_mct
-  private :: glc_import_mct
   private :: glc_SetGSMap_mct
   private :: glc_domain_mct
 
@@ -76,6 +74,7 @@ module glc_comp_mct
   type (MPAS_streamManager_type), pointer :: stream_manager
   integer :: itimestep, &  ! time step number for MPAS
              glc_cpl_dt    ! length of coupling interval in seconds?
+  character (len=*), parameter :: coupleAlarmID = 'coupling'  ! the MPAS alarm for coupling intervals
 
 !=======================================================================
 
@@ -85,7 +84,7 @@ contains
 ! ! ROUTINE: glc_init_mct
 !
 ! ! INTERFACE:
-  subroutine glc_init_mct( EClock, cdata_o, x2o_o, o2x_o, NLFilename )!{{{
+  subroutine glc_init_mct( EClock, cdata_g, x2g_g, g2x_g, NLFilename )!{{{
 !
 ! ! DESCRIPTION:
 ! Initialize MPAS-LI
@@ -100,8 +99,8 @@ contains
 ! !INPUT/OUTPUT PARAMETERS:
 
     type(ESMF_Clock), intent(inout) :: EClock
-    type(seq_cdata), intent(inout) :: cdata_o
-    type(mct_aVect), intent(inout) :: x2o_o, o2x_o
+    type(seq_cdata), intent(inout) :: cdata_g
+    type(mct_aVect), intent(inout) :: x2g_g, g2x_g
     character(len=*), optional, intent(in) :: NLFilename ! Namelist filename
 !
 ! !REVISION HISTORY:
@@ -115,12 +114,12 @@ contains
 
     type (domain_type), pointer :: domain_ptr
 
-    integer :: glcID, mpicom_o, lsize, start_ymd, start_tod, start_year, start_day,   &
-       start_month, start_hour, iyear, mpas_o_cpl_dt, shrloglev, shrlogunit, stdout_shr, pio_iotype
+    integer :: glcID, mpicom_g, lsize, start_ymd, start_tod, start_year, start_day,   &
+       start_month, start_hour, iyear, mpas_li_cpl_dt, shrloglev, shrlogunit, stdout_shr, pio_iotype
 
-    type(mct_gsMap), pointer :: gsMap_o
+    type(mct_gsMap), pointer :: gsMap_g
 
-    type(mct_gGrid), pointer :: dom_o
+    type(mct_gGrid), pointer :: dom_g
 
     integer :: errorCode  ! error code
 
@@ -202,12 +201,12 @@ contains
 
     errorCode = 0 
 
-    call seq_cdata_setptrs(cdata_o, ID=glcID, mpicom=mpicom_o, &
-         gsMap=gsMap_o, dom=dom_o, infodata=infodata)
+    call seq_cdata_setptrs(cdata_g, ID=glcID, mpicom=mpicom_g, &
+         gsMap=gsMap_g, dom=dom_g, infodata=infodata)
 
-    MPASO_MCT_glcID =  glcID
-    MPASO_MCT_gsMap_o => gsMap_o
-    MPASO_MCT_dom_o   => dom_o
+    MPASLI_MCT_glcID =  glcID
+    MPASLI_MCT_gsMap_g => gsMap_g
+    MPASLI_MCT_dom_g   => dom_g
 
     ! Remove after buildnml is building an actual namelist
     call seq_timemgr_EClockGetData(EClock, calendar=cesm_calendar)
@@ -217,7 +216,7 @@ contains
        write(calendar_name, *) 'gregorian'
     end if
 
-     call MPI_comm_rank(mpicom_o,iam,ierr)
+     call MPI_comm_rank(mpicom_g,iam,ierr)
 #if (defined _MEMTRACE)
      if(iam == 0) then
          lbnum=1
@@ -231,7 +230,7 @@ contains
      ! The following communicator module variable will be utilized in init_communicate that
      ! is called by initial - this is done to make the code backwards compatible
 
-     mpi_communicator_glc = mpicom_o
+     mpi_communicator_glc = mpicom_g
 
 !-----------------------------------------------------------------------
 !
@@ -293,7 +292,7 @@ contains
 
     domain_ptr => domain
     !DWJ 01/07/2015 Remove calendar name after buildnml is building an actual namelist
-    call mpas_framework_init(dminfo, domain_ptr, mpi_communicator_glc, nml_filename, io_system, calendar_name, stdoutUnit=stdout_shr, stderrUnit=stdout_shr)
+    call mpas_framework_init(dminfo, domain_ptr, mpi_communicator_glc, nml_filename, io_system, calendar_name, stdoutUnit_in=stdout_shr, stderrUnit_in=stdout_shr)
     !call mpas_framework_init(dminfo, domain_ptr, mpi_communicator_glc, nml_filename, io_system, stdoutUnit=stdout_shr, stderrUnit=stdout_shr)
     call mpas_core_setup_packages(domain_ptr % configs, domain_ptr % packages, ierr)
 
@@ -418,7 +417,7 @@ contains
        call mpas_set_clock_time(domain % clock, currTime, MPAS_START_TIME, ierr)
        call mpas_set_clock_time(domain % clock, currTime, MPAS_NOW, ierr)
 
-       currTime = mpas_get_clock_time(clock, MPAS_NOW, ierr)
+       currTime = mpas_get_clock_time(domain % clock, MPAS_NOW, ierr)
        call mpas_get_time(curr_time=currTime, YYYY=iyear0, MM=imonth0, ierr=ierr)
        call seq_timemgr_EClockGetData(EClock, start_ymd=start_ymd, start_tod=start_tod)
        call shr_cal_date2ymd(start_ymd,start_year,start_month,start_day)
@@ -507,7 +506,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-    call glc_export_mct(g2x_g, errorCode)
+    call glc_export_mct(g2x_g % rAttr, errorCode)
     if (errorCode /= 0) then
        call mpas_dmpar_global_abort('ERROR in glc_export_mct')
     endif
@@ -537,7 +536,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-    call glc_import_mct(x2g_g, errorCode)
+    call glc_import_mct(x2g_g % rAttr, errorCode)
     if (errorCode /= 0) then
        call mpas_dmpar_global_abort('ERROR in glc_import_mct')
     endif
@@ -661,7 +660,7 @@ contains
       call mpas_reset_clock_alarm(domain_ptr % clock, coupleAlarmID, ierr=ierr)
 
       ! Import state from coupler
-      call ocn_import_mct(x2g_g, ierr)
+      call ocn_import_mct(x2g_g % rAttr, ierr)
 
       ! Handle writing initial state
       call mpas_pool_get_config(domain_ptr % configs, 'config_write_output_on_startup', config_write_output_on_startup)
@@ -799,7 +798,7 @@ contains
 !      end do
 
       ! Export state to coupler
-      call glc_export_mct(g2x_g, ierr)
+      call glc_export_mct(g2x_g % rAttr, ierr)
 
       ! Check if clocks are in sync
       currTime = mpas_get_clock_time(domain_ptr % clock, MPAS_NOW, ierr)
