@@ -1,0 +1,3 @@
+[submodule "models/glc/mpas-li/model"]
+	path = models/glc/mpas-li/model
+	url = git@github.com:matthewhoffman/MPAS.git
