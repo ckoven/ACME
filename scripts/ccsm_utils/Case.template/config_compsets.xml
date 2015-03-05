@@ -17,7 +17,7 @@ Where
    ATM  = [CAM4, CAM5, DATM, SATM, XATM]
    LND  = [CLM40, CLM45, CLM50, DLND, SLND, XLND]
    ICE  = [CICE, DICE, SICE, SICE]
-   OCN  = [POP2, DOCN, SOCN, XOCN,AQUAP,MPAS]
+   OCN  = [POP2, DOCN, SOCN, XOCN,AQUAP,MPASO]
    ROF  = [RTM, DROF, SROF, XROF]
    GLC  = [CISM1, CISM2S, CISM2P, MPASLI, SGLC, XGLC]
    WAV  = [WW3, DWAV, SWAV, XWAV]
@@ -175,7 +175,7 @@ value of RUN_STARTDATE will be date2.
 <COMPSET sname="C_INTERANNUAL"        alias="CIAF" >2000_DATM%IAF_SLND_DICE%SIAF_POP2_DROF%IAF_SGLC_SWAV</COMPSET>
 <COMPSET sname="C_NORMAL_YEAR_ECOSYS" alias="CECO" >1850_DATM%NYF_SLND_DICE%SSMI_POP2%ECO_DROF%NYF_SGLC_SWAV</COMPSET>
 
-<COMPSET sname="C_MPAS"               alias="CMPAS" support_level="Experimental, under development" >2000_DATM%NYF_SLND_DICE%SSMI_MPAS_SROF%NYF_SGLC_SWAV</COMPSET>
+<COMPSET sname="C_MPAS"               alias="CMPAS" support_level="Experimental, under development" >2000_DATM%NYF_SLND_DICE%SSMI_MPASO_SROF%NYF_SGLC_SWAV</COMPSET>
 
 <!-- D compsets -->
 
@@ -430,7 +430,7 @@ value of RUN_STARTDATE will be date2.
 <COMP_OCN compset="_SOCN">socn</COMP_OCN>
 <COMP_OCN compset="_XOCN">xocn</COMP_OCN>
 <COMP_OCN compset="_AQUAP">aquap</COMP_OCN>
-<COMP_OCN compset="_MPAS">mpas-o</COMP_OCN>
+<COMP_OCN compset="_MPASO">mpas-o</COMP_OCN>
 
 <COMP_GLC compset="_CISM">cism</COMP_GLC> 
 <COMP_GLC compset="_MPASLI">mpasli</COMP_GLC>
