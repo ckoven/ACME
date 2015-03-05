@@ -104,6 +104,10 @@ Each grid is associated with five names
 <GRID sname="1.9x2.5_gx1v6"     alias="f19_g16"  compset="_CISM">a%1.9x2.5_l%1.9x2.5_oi%gx1v6_r%r05_m%gx1v6_g%gland5UM_w%null</GRID> <!-- back compat -->
 <GRID sname="0.9x1.25_gx1v6"    alias="f09_g16"  compset="_CISM">a%0.9x1.25_l%0.9x1.25_oi%gx1v6_r%r05_m%gx1v6_g%gland5UM_w%null</GRID> <!-- back compat -->
 
+<!--- mpas-li grids -->
+
+<GRID sname="0.9x1.25_gx1v6_a"    alias="f09_g16_a"  compset="_MPASLI">a%0.9x1.25_l%0.9x1.25_oi%gx1v6_r%r05_m%gx1v6_g%ais_w%null</GRID>
+
 <!-- new runoff grids for data runoff model DROF -->
 
 <GRID sname="T31_gx3v7_rx1"              alias="T31_g37_rx1"      compset="_DROF">a%T31_l%T31_oi%gx3v7_r%rx1_m%gx3v7_g%null_w%null</GRID> <!-- back compat -->

@@ -114,7 +114,7 @@
 
 <entry id="COMP_GLC" 
  type="char"
- valid_values="cism,xglc,sglc" 
+ valid_values="cism,xglc,sglc,mpasli"
  value="sglc"  
  group="case_comp" 
  sdesc="Name of land ice-sheet component"
@@ -263,6 +263,19 @@ The glimmer-cism grid for coupling is assumed to be identical to the land grid.
 CISM_GRID determines the specific local internal grid that CISM will use for 
 internal calculations. 
 The default is gland5UM (5km grid)."
+></entry> 
+
+<entry id="MPASLI_GRID"
+ type="char"
+ valid_values="ais,null"
+ value="ais"
+ group="run_component_mpasli"
+ sdesc="Glacier model grid - used only for glacier land mask in clm"
+ ldesc="
+The MPAS-LI grid for coupling is assumed to be identical to the land grid.
+MPASLI_GRID determines the specific local internal grid that MPAS-LI will use for
+internal calculations.
+The default is ais."
 ></entry> 
 
 <entry id="ATM_GRID" 
