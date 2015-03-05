@@ -1,8 +1,8 @@
 #! /bin/csh -fv
 
-if !(-d $OBJROOT/ocn/obj ) mkdir -p $OBJROOT/glc/obj || exit 2
-if !(-d $OBJROOT/ocn/source) mkdir -p $OBJROOT/glc/source || exit 3
-if !(-d $OBJROOT/ocn/input ) mkdir -p $OBJROOT/glc/input || exit 4
+if !(-d $OBJROOT/glc/obj ) mkdir -p $OBJROOT/glc/obj || exit 2
+if !(-d $OBJROOT/glc/source) mkdir -p $OBJROOT/glc/source || exit 3
+if !(-d $OBJROOT/glc/input ) mkdir -p $OBJROOT/glc/input || exit 4
 
 set my_path = $CASEROOT/SourceMods/src.mpas-li
 
