@@ -433,7 +433,7 @@ value of RUN_STARTDATE will be date2.
 <COMP_OCN compset="_MPASO">mpas-o</COMP_OCN>
 
 <COMP_GLC compset="_CISM">cism</COMP_GLC> 
-<COMP_GLC compset="_MPASLI">mpasli</COMP_GLC>
+<COMP_GLC compset="_MPASLI">mpas-li</COMP_GLC>
 <COMP_GLC compset="_SGLC">sglc</COMP_GLC>
 <COMP_GLC compset="_XGLC">xglc</COMP_GLC>
 
@@ -1025,7 +1025,7 @@ CISM2S => cism2 (serial)
 
 
 <!-- ================================================================================== -->
-<!-- SECTION: component mpasli -->
+<!-- SECTION: component mpas-li -->
 <!-- ================================================================================== -->
 
 <GLC_NEC compset="_MPASLI">10</GLC_NEC>
