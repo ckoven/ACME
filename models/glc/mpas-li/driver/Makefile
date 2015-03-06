@@ -6,7 +6,7 @@ OBJS = glc_comp_mct.o \
        glc_mct_vars.o \
        glc_import_export.o
 
-LANDICE_SHARED_INCLUDES=-I../core_landice -I../framework -I../operators
+LANDICE_SHARED_INCLUDES=-I../core_landice -I../framework -I../operators -I../registry/ezxml
 
 all: $(OBJS)
 

@@ -70,7 +70,7 @@ module glc_comp_mct
 
   ! MPAS Datatypes
   type (dm_info), pointer :: dminfo
-  type (domain_type), save, target:: domain
+  type (domain_type), save, pointer:: domain
   type (MPAS_streamManager_type), pointer :: stream_manager
   integer :: itimestep, &  ! time step number for MPAS
              glc_cpl_dt    ! length of coupling interval in seconds?
@@ -111,8 +111,6 @@ contains
 !  local variables
 !
 !-----------------------------------------------------------------------
-
-    type (domain_type), pointer :: domain_ptr
 
     integer :: glcID, mpicom_g, lsize, start_ymd, start_tod, start_year, start_day,   &
        start_month, start_hour, iyear, mpas_li_cpl_dt, shrloglev, shrlogunit, stdout_shr, pio_iotype
@@ -238,7 +236,7 @@ contains
 !
 !-----------------------------------------------------------------------
 
-    call mpaso_cpl_indices_set()
+    call glc_cpl_indices_set()
     call seq_infodata_GetData( infodata, start_type=starttype)
 
     if (     trim(starttype) == trim(seq_infodata_start_type_start)) then
@@ -290,51 +288,52 @@ contains
     call shr_file_getLogLevel(shrloglev)
     call shr_file_setLogUnit (stdout_shr)
 
-    domain_ptr => domain
+    allocate(domain) ! allocate the pointer to the domain object before passing it to framework init
+
     !DWJ 01/07/2015 Remove calendar name after buildnml is building an actual namelist
-    call mpas_framework_init(dminfo, domain_ptr, mpi_communicator_glc, nml_filename, io_system, calendar_name, stdoutUnit_in=stdout_shr, stderrUnit_in=stdout_shr)
-    !call mpas_framework_init(dminfo, domain_ptr, mpi_communicator_glc, nml_filename, io_system, stdoutUnit=stdout_shr, stderrUnit=stdout_shr)
-    call mpas_core_setup_packages(domain_ptr % configs, domain_ptr % packages, ierr)
+    call mpas_framework_init(dminfo, domain, mpi_communicator_glc, nml_filename, io_system, calendar_name, stdoutUnit_in=stdout_shr, stderrUnit_in=stdout_shr)
+    !call mpas_framework_init(dminfo, domain, mpi_communicator_glc, nml_filename, io_system, stdoutUnit=stdout_shr, stderrUnit=stdout_shr)
+    call mpas_core_setup_packages(domain % configs, domain % packages, ierr)
 
     ! Override namelist options based on start type
     if (runtype == "initial") then ! Start up run
 
         ! Turn off restart
-        call mpas_pool_get_config(domain_ptr % configs, "config_do_restart", tempLogicalConfig)
+        call mpas_pool_get_config(domain % configs, "config_do_restart", tempLogicalConfig)
         tempLogicalConfig = .false.
 
         ! Setup start time. Will be over written later when clocks are synchronized
-        call mpas_pool_get_config(domain_ptr % configs, "config_start_time", tempCharConfig)
+        call mpas_pool_get_config(domain % configs, "config_start_time", tempCharConfig)
         tempCharConfig = "0001-01-01_00:00:00"
 
         ! Setup run duration. Will be ignored in coupled run, since coupler defines how long the run is.
-        call mpas_pool_get_config(domain_ptr % configs, "config_run_duration", tempCharConfig)
+        call mpas_pool_get_config(domain % configs, "config_run_duration", tempCharConfig)
         tempCharConfig = "0001-00-00_00:00:00"
 
     else if (runtype == "continue" .or. runtype == "branch") then ! Restart run or branch run
 
         ! Turn on restart
-        call mpas_pool_get_config(domain_ptr % configs, "config_do_restart", tempLogicalConfig)
+        call mpas_pool_get_config(domain % configs, "config_do_restart", tempLogicalConfig)
         tempLogicalConfig = .true.
 
         ! Set start time to be read from file
-        call mpas_pool_get_config(domain_ptr % configs, "config_start_time", tempCharConfig)
+        call mpas_pool_get_config(domain % configs, "config_start_time", tempCharConfig)
         tempCharConfig = "file"
 
         ! Setup run duration. Will be ignored in coupled run, since coupler defines how long the run is.
-        call mpas_pool_get_config(domain_ptr % configs, "config_run_duration", tempCharConfig)
+        call mpas_pool_get_config(domain % configs, "config_run_duration", tempCharConfig)
         tempCharConfig = "0001-00-00_00:00:00"
 
     end if
 
-    call mpas_core_setup_clock(domain_ptr % clock, domain_ptr % configs, ierr)
+    call mpas_core_setup_clock(domain % clock, domain % configs, ierr)
 
 
     !
     ! Using information from the namelist, a graph.info file, and a file containing
     !    mesh fields, build halos and allocate blocks in the domain
     !
-    call mpas_core_get_mesh_stream(domain_ptr % configs, mesh_stream, ierr)
+    call mpas_core_get_mesh_stream(domain % configs, mesh_stream, ierr)
     if (ierr /= 0) then
        call mpas_dmpar_abort(dminfo)
     end if
@@ -351,7 +350,7 @@ contains
     call mpas_c_to_f_string(c_ref_time_temp, ref_time_temp)
     call mpas_c_to_f_string(c_filename_interval_temp, filename_interval_temp)
 
-    start_time = mpas_get_clock_time(domain_ptr % clock, MPAS_START_TIME, ierr)
+    start_time = mpas_get_clock_time(domain % clock, MPAS_START_TIME, ierr)
     if ( trim(ref_time_temp) == 'initial_time' ) then
         call mpas_get_time(start_time, dateTimeString=ref_time_temp, ierr=ierr)
     end if
@@ -365,7 +364,7 @@ contains
     end if
     write(stderrUnit, *) ' ** Attempting to bootstrap MPAS framework using stream: ', trim(mesh_stream)
 
-    call mpas_bootstrap_framework(domain_ptr, mesh_filename)
+    call mpas_bootstrap_framework(domain, mesh_filename)
 
     !
     ! Set up run-time streams
@@ -387,7 +386,7 @@ contains
     call mpas_timer_start("total time")
 
     ! Now actually init the MPAS LI core
-    call mpas_core_init(domain_ptr, stream_manager, timeStamp)
+    call mpas_core_init(domain, stream_manager, timeStamp)
 
 !-----------------------------------------------------------------------
 !
@@ -476,16 +475,16 @@ contains
     call mpas_set_timeInterval(alarmTimeStep, timeString=coupleTimeStamp, ierr=ierr)
     alarmStartTime = currTime
     call mpas_add_clock_alarm(domain % clock, coupleAlarmID, alarmStartTime, alarmTimeStep, ierr=ierr)
-    call mpas_reset_clock_alarm(domain_ptr % clock, coupleAlarmID, ierr=ierr)
+    call mpas_reset_clock_alarm(domain % clock, coupleAlarmID, ierr=ierr)
 
     ! Setup clock for initial runs
     if ( runtype == 'initial' ) then
       ! Check to see if cpl_seq_option is either tight option ('CESM1_ORIG_TIGHT' or 'CESM1_MOD_TIGHT')
       if ( trim (cpl_seq_option) == 'CESM1_ORIG' .or. trim(cpl_seq_option) == 'CESM1_MOD' .or. &
            trim (cpl_seq_option) == 'RASM_OPTION1' .or. trim(cpl_seq_option) == 'RASM_OPTION2') then
-         do while (.not. mpas_is_alarm_ringing(domain_ptr % clock, coupleAlarmID, ierr=ierr))
+         do while (.not. mpas_is_alarm_ringing(domain % clock, coupleAlarmID, ierr=ierr))
             itimestep = itimestep + 1
-            call mpas_advance_clock(domain_ptr % clock)
+            call mpas_advance_clock(domain % clock)
          end do
       end if
 
@@ -528,7 +527,7 @@ contains
 
     call t_stopf ('mpas-li_mct_init')
 
-    call seq_infodata_PutData( infodata, glc_prognostic=.true., glcrof_prognostic=.true.)
+    call seq_infodata_PutData( infodata, glc_prognostic=.true.)
 
 !-----------------------------------------------------------------------
 !
@@ -605,10 +604,13 @@ contains
 ! !INTERFACE:
   subroutine glc_run_mct( EClock, cdata_g, x2g_g, g2x_g)!{{{
 
+    ! MPAS Framework modules
     use mpas_kind_types
     use mpas_grid_types
     use mpas_stream_manager
     use mpas_timer
+    ! MPAS-LI modules
+    use li_statistics
 
     implicit none
 !
@@ -629,50 +631,74 @@ contains
 !!  local variables
 !!
 !!-----------------------------------------------------------------------
+! Variables related to ACME coupler
       integer :: ymd, tod, ihour, iminute, isecond
       integer :: iyear, imonth, iday, curr_ymd, curr_tod
       integer :: shrloglev, shrlogunit
-      real (kind=RKIND) :: dt
-      type (block_type), pointer :: block_ptr
 
-      type (mpas_pool_type), pointer :: meshPool, statePool, forcingPool, averagePool
+!      real (kind=RKIND) :: dt
+!      type (block_type), pointer :: block_ptr
 
-      type (MPAS_Time_Type) :: currTime, alarmStartTime
-      type (MPAS_TimeInterval_Type) :: alarmTimeStep
-      type (domain_type), pointer :: domain_ptr
+!      type (mpas_pool_type), pointer :: meshPool, statePool, forcingPool, averagePool
+
+!      type (MPAS_Time_Type) :: currTime, alarmStartTime
+!      type (MPAS_TimeInterval_Type) :: alarmTimeStep
+!      type (domain_type), pointer :: domain
+!      character(len=StrKIND) :: timeStamp
+!      type (MPAS_timeInterval_type) :: timeStep
+!      integer :: ierr
+!      logical, pointer :: config_write_output_on_startup
+!      character (len=StrKIND), pointer :: config_restart_timestamp_name
+
+! Variable related to MPAS-LI
+      integer :: itimestep
+      type (block_type), pointer :: block
+      type (mpas_pool_type), pointer :: statePool
+      integer, pointer :: config_stats_interval   !< interval (number oftimesteps) for writing stats
+      logical, pointer :: config_do_restart, config_write_output_on_startup, config_write_stats_on_startup
+      character(len=StrKIND), pointer :: config_restart_timestamp_name
+
+      type (MPAS_Time_Type) :: currTime
       character(len=StrKIND) :: timeStamp
-      type (MPAS_timeInterval_type) :: timeStep
-      integer :: ierr
-      logical, pointer :: config_write_output_on_startup
-      character (len=StrKIND), pointer :: config_restart_timestamp_name
+      integer :: err, err_tmp, globalErr
+      logical :: solveVelo
+      type (MPAS_TimeInterval_type) :: timeStepInterval  !< time step as an interval
+      real (kind=RKIND) :: dtSeconds  !< time step in seconds
 
-      domain_ptr => domain
 
-      call mpas_pool_get_config(domain_ptr % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
+      err = 0
+
+      domain => domain
+
+      call mpas_pool_get_config(domain % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
 
       ! Setup log information.
       call shr_file_getLogUnit (shrlogunit)
       call shr_file_getLogLevel(shrloglev)
       call shr_file_setLogUnit (stdoutUnit)
 
-      timeStep = mpas_get_clock_timestep(domain_ptr % clock, ierr=ierr)
-      call mpas_get_timeInterval(timeStep, dt=dt)
-      call mpas_reset_clock_alarm(domain_ptr % clock, coupleAlarmID, ierr=ierr)
+      timeStepInterval = mpas_get_clock_timestep(domain % clock, ierr=err_tmp)
+      err = ior(err,err_tmp)
+      call mpas_get_timeInterval(timeStepInterval, dt=dtSeconds)
+      call mpas_reset_clock_alarm(domain % clock, coupleAlarmID, ierr=err_tmp)
+      err = ior(err,err_tmp)
 
       ! Import state from coupler
-      call ocn_import_mct(x2g_g % rAttr, ierr)
+      call glc_import_mct(x2g_g % rAttr, err_tmp)
+      err = ior(err,err_tmp)
 
       ! Handle writing initial state
-      call mpas_pool_get_config(domain_ptr % configs, 'config_write_output_on_startup', config_write_output_on_startup)
+      call mpas_pool_get_config(domain % configs, 'config_write_output_on_startup', config_write_output_on_startup)
       if (config_write_output_on_startup) then
-          call mpas_stream_mgr_write(stream_manager, 'output', forceWriteNow=.true., ierr=ierr)
+          call mpas_stream_mgr_write(stream_manager, 'output', forceWriteNow=.true., ierr=err_tmp)
+          err = ior(err,err_tmp)
 
           ! Reset config to false, so we don't write the state every coupling interval.
           config_write_output_on_startup = .false.
       endif
 
       ! Initialize time average fields
-!      block_ptr => domain_ptr % blocklist
+!      block_ptr => domain % blocklist
 !      do while(associated(block_ptr))
 !        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
 !        call ocn_time_average_coupled_init(forcingPool)
@@ -682,12 +708,13 @@ contains
       ! During integration, time level 1 stores the model state at the beginning of the
       !   time step, and time level 2 stores the state advanced dt in time by timestep(...)
       ! This integration loop continues for a single coupling interval.
-      do while (.not. mpas_is_alarm_ringing(domain_ptr % clock, coupleAlarmID, ierr=ierr))
+      do while (.not. mpas_is_alarm_ringing(domain % clock, coupleAlarmID, ierr=err_tmp))
+         err = ior(err,err_tmp)
 
          itimestep = itimestep + 1
 
          ! Get the interval at this point in time - currently this does not change during the simulation, but re-calculating it explicitly for generality
-         timeStepInterval = mpas_get_clock_timestep(clock, ierr=err_tmp)
+         timeStepInterval = mpas_get_clock_timestep(domain % clock, ierr=err_tmp)
          err = ior(err,err_tmp)
          ! Convert the clock's time interval into a dt in seconds to be used by the time stepper, using the currTime as the start time for this interval.
          ! (We want to do this conversion before advancing the clock because the dt in seconds may change
@@ -696,9 +723,9 @@ contains
          call mpas_get_timeInterval(timeStepInterval, StartTimeIn=currTime, dt=dtSeconds, ierr=err_tmp)
          err = ior(err,err_tmp)
 
-         call mpas_advance_clock(clock)
+         call mpas_advance_clock(domain % clock)
 
-         currTime = mpas_get_clock_time(clock, MPAS_NOW, err_tmp)
+         currTime = mpas_get_clock_time(domain % clock, MPAS_NOW, err_tmp)
          call mpas_get_time(curr_time=currTime, dateTimeString=timeStamp, ierr=err_tmp)
          err = ior(err, err_tmp)
          write(0,*) 'Doing timestep ', trim(timeStamp)
@@ -743,10 +770,11 @@ contains
          ! will allow that.
          ! Finally, set whence to latest_before so we have piecewise-constant forcing.
          ! Could add, e.g., linear interpolation later.
-         call mpas_stream_mgr_read(stream_manager, whence=MPAS_STREAM_LATEST_BEFORE, ierr=err_tmp)
-         err = ior(err, err_tmp)
-         call mpas_stream_mgr_reset_alarms(stream_manager, direction=MPAS_STREAM_INPUT, ierr=err_tmp)
-         err = ior(err, err_tmp)
+! In coupled mode, we don't want to use forcing from a file - that should come from the coupler!
+!         call mpas_stream_mgr_read(stream_manager, whence=MPAS_STREAM_LATEST_BEFORE, ierr=err_tmp)
+!         err = ior(err, err_tmp)
+!         call mpas_stream_mgr_reset_alarms(stream_manager, direction=MPAS_STREAM_INPUT, ierr=err_tmp)
+!         err = ior(err, err_tmp)
 
 
          ! ===
@@ -777,6 +805,7 @@ contains
          endif
 
       end do
+      err = ior(err, err_tmp)
 
       ! Check if coupler wants us to write a restart file.
       ! We only write restart files at the end of a coupling interval
@@ -786,11 +815,12 @@ contains
          close(22)
 
          ! Write a restart file, because the coupler asked for it.
-         call mpas_stream_mgr_write(stream_manager, forceWriteNow=.true., streamID='restart', ierr=ierr)
+         call mpas_stream_mgr_write(stream_manager, forceWriteNow=.true., streamID='restart', ierr=err_tmp)
+         err = ior(err,err_tmp)
       end if
 
       ! Normalize time averaged fields
-!      block_ptr => domain_ptr % blocklist
+!      block_ptr => domain % blocklist
 !      do while(associated(block_ptr))
 !        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
 !        call ocn_time_average_coupled_normalize(forcingPool)
@@ -798,11 +828,14 @@ contains
 !      end do
 
       ! Export state to coupler
-      call glc_export_mct(g2x_g % rAttr, ierr)
+      call glc_export_mct(g2x_g % rAttr, err_tmp)
+      err = ior(err,err_tmp)
 
       ! Check if clocks are in sync
-      currTime = mpas_get_clock_time(domain_ptr % clock, MPAS_NOW, ierr)
-      call mpas_get_time(curr_time=currTime, YYYY=iyear, MM=imonth, DD=iday, H=ihour, M=iminute, S=isecond, ierr=ierr)
+      currTime = mpas_get_clock_time(domain % clock, MPAS_NOW, err_tmp)
+      err = ior(err,err_tmp)
+      call mpas_get_time(curr_time=currTime, YYYY=iyear, MM=imonth, DD=iday, H=ihour, M=iminute, S=isecond, ierr=err_tmp)
+      err = ior(err,err_tmp)
       call seq_timemgr_EClockGetData(EClock, curr_ymd=curr_ymd, curr_tod=curr_tod)
 
       ymd = iyear * 10000 + imonth*100 + iday
@@ -830,7 +863,10 @@ contains
 ! !INTERFACE:
   subroutine glc_final_mct( EClock, cdata_g, x2g_g, g2x_g)!{{{
 
+    ! MPAS Framework modules
     use mpas_stream_manager, only : MPAS_stream_mgr_finalize
+    ! MPAS Land Ice modules
+    use li_velocity, only: li_velocity_finalize
 !
 ! !DESCRIPTION:
 ! Finalize MPAS-LI
@@ -852,11 +888,10 @@ contains
 !-----------------------------------------------------------------------
     integer :: shrloglev, shrlogunit
     integer :: err, err_tmp
-    type (domain_type), pointer :: domain_ptr
 
 !-----------------------------------------------------------------------
 
-    domain_ptr => domain
+    domain => domain
 
     ! Setup I/O logs
     call shr_file_getLogUnit (shrlogunit)
@@ -869,9 +904,9 @@ contains
 
     call mpas_timer_stop("total time")
     call mpas_timer_write()
-    call mpas_core_finalize(domain_ptr, stream_manager)
+    call mpas_core_finalize(domain, stream_manager)
     call MPAS_stream_mgr_finalize(stream_manager)
-    call mpas_framework_finalize(dminfo, domain_ptr, io_system)
+    call mpas_framework_finalize(dminfo, domain, io_system)
 
     ! Reset I/O logs
     call shr_file_setLogUnit (shrlogunit)
@@ -981,6 +1016,8 @@ contains
 !
 ! !INPUT/OUTPUT PARAMETERS:
 
+    use shr_const_mod, only: SHR_CONST_PI
+
     implicit none
     integer        , intent(in)    :: lsize
     type(mct_gsMap), intent(in)    :: gsMap_g
@@ -1009,7 +1046,7 @@ contains
 
     real (kind=RKIND), pointer :: sphere_radius
 
-    r2d = 180.0/pii
+    r2d = 180.0_RKIND / SHR_CONST_PI
 
 !-------------------------------------------------------------------
 !
@@ -1038,12 +1075,12 @@ contains
 !
 !-------------------------------------------------------------------
 
-    data(:) = -9999.0_R8
+    data(:) = -9999.0_RKIND
     call mct_gGrid_importRAttr(dom_g,"lat"  ,data,lsize)
     call mct_gGrid_importRAttr(dom_g,"lon"  ,data,lsize)
     call mct_gGrid_importRAttr(dom_g,"area" ,data,lsize)
     call mct_gGrid_importRAttr(dom_g,"aream",data,lsize)
-    data(:) = 1.0_R8
+    data(:) = 1.0_RKIND
     call mct_gGrid_importRAttr(dom_g,"mask",data,lsize)
     call mct_gGrid_importRAttr(dom_g,"frac",data,lsize)
 

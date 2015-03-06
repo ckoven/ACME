@@ -1,11 +1,12 @@
 module glc_import_export
 
   use shr_sys_mod
-  use shr_kind_mod,        only: IN=>SHR_KIND_IN, R8=>SHR_KIND_R8
-  use shr_kind_mod,        only: CS=>SHR_KIND_CS, CL=>SHR_KIND_CL
+  use shr_kind_mod,        only: IN=>SHR_KIND_IN
+!  use shr_kind_mod,        only: CS=>SHR_KIND_CS, CL=>SHR_KIND_CL
 !  use glc_constants,       only: verbose, stdout, stderr, tkfrz, glc_nec
 !  use glc_global_grid,     only: glc_grid
 !  use glc_cpl_indices
+  use mpas_kind_types
 
   implicit none
   save
@@ -22,7 +23,7 @@ contains
     !-------------------------------------------------------------------
 !    use glc_global_fields, only: tsfc, topo, qsmb 
 
-    real(r8)   , intent(in) :: x2g(:,:)
+    real(RKIND)   , intent(in) :: x2g(:,:)
     integer, intent(out) :: errorCode
 
     integer(IN) :: j,jj,i,g,nxg,nyg,n,elev_class
@@ -63,10 +64,10 @@ contains
  !   use glc_route_ice_runoff, only: route_ice_runoff    
  !   use glc_override_frac   , only: frac_overrides_enabled, do_frac_overrides
     
-    real(r8)    ,intent(inout) :: g2x(:,:)
+    real(RKIND)    ,intent(inout) :: g2x(:,:)
     integer, intent(out) :: errorCode
 
-    real(r8), pointer :: gfrac_to_cpl(:,:,:)   ! if overriding gfrac, this is the modified version, 
+    real(RKIND), pointer :: gfrac_to_cpl(:,:,:)   ! if overriding gfrac, this is the modified version, 
                                                ! sent to the coupler; otherwise it points to the real gfrac
     logical :: gfrac_to_cpl_allocated          ! whether we allocated gfrac_to_cpl
     integer(IN) :: j,jj,i,g,nxg,nyg,n,elev_class
