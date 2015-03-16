@@ -14,11 +14,11 @@ chmod 644 $MPAS_NML
 
 if ($CONTINUE_RUN == 'TRUE') then
     set config_do_restart = .true.
-#    set config_start_time = 'file'
+    set config_start_time = 'file'
 #    #TODO - config_start_time must not be read in - but obtained from the coupler
 else
     set config_do_restart = .false.
-#    set config_start_time = '0001-01-01_00:00:00' 
+    set config_start_time = '0001-01-01_00:00:00' 
 endif
 
 cat >! $MPAS_NML << EOF
@@ -82,3 +82,81 @@ cat >! $MPAS_NML << EOF
 EOF
 
 /bin/cp $CASEROOT/CaseDocs/mpasli.in $RUNDIR
+
+
+
+set STREAM_NAME = "streams.landice"
+set MPAS_STREAMS = $CASEBUILD/../$STREAM_NAME
+touch $MPAS_STREAMS
+chmod 644 $MPAS_STREAMS
+
+# Write streams file
+	cat >! $MPAS_STREAMS << 'EOF'
+	<streams>
+
+	<immutable_stream name="mesh"
+					  type="none"
+					  filename_template="not-to-be-used.nc"
+	/>
+
+	<immutable_stream name="input"
+					  type="input"
+				  filename_template="landice_grid.nc"
+					  input_interval="initial_only"/>
+
+	<!--
+	The restart stream is actually controlled via the coupler.
+	Changing output_interval here will not have any affect on
+	the frequency restart files are written.
+
+	Changing the output_interval could cause loss of data.
+
+	The output_interval is set to 1 second to ensure each restart frame has a
+	unique file.
+	-->
+	<immutable_stream name="restart"
+					  type="input;output"
+					  filename_template="rst.glc.$Y-$M-$D_$h.$m.$s.nc"
+					  filename_interval="output_interval"
+					  reference_time="0000-01-01_00:00:00"
+					  clobber_mode="truncate"
+					  input_interval="initial_only"
+					  output_interval="10-00-00_00:00:00"/>
+
+	<!--
+	output is the main history output stream. You can add auxiliary streams to
+	this stream to include more fields.
+	-->
+
+	<stream name="output"
+			type="output"
+			filename_template="hist.glc.$Y-$M-$D_$h.$m.$s.nc"
+			filename_interval="01-00-00_00:00:00"
+			reference_time="0000-01-01_00:00:00"
+			clobber_mode="truncate"
+			output_interval="00-01-00_00:00:00">
+
+    <stream name="basicmesh"/>
+    <var_array name="tracers"/>
+    <var name="xtime"/>
+    <var name="thickness"/>
+    <var name="layerThickness"/>
+    <var name="lowerSurface"/>
+    <var name="upperSurface"/>
+    <var name="cellMask"/>
+    <var name="edgeMask"/>
+    <var name="vertexMask"/>
+    <var name="normalVelocity"/>
+    <var name="uReconstructX"/>
+    <var name="uReconstructY"/>
+    <var name="uReconstructZ"/>
+    <var name="uReconstructZonal"/>
+    <var name="uReconstructMeridional"/>
+
+</stream>
+
+</streams>
+
+'EOF'
+endif # Writing streams file
+
