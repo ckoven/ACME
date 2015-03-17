@@ -7,8 +7,9 @@ mkdir -p $CASEROOT/CaseDocs
 
 # Put input .nc file and graph.info.part files into the run directory manually
 echo "NOTE: You must copy the input .nc file and graph.info.part files into the run directory manually"
+#echo $CASEROOT
 
-set MPAS_NML = $CASEROOT/CaseDocs/mpasli.in
+set MPAS_NML = $CASEROOT/CaseDocs/mpasli_in
 touch $MPAS_NML
 chmod 644 $MPAS_NML
 
@@ -24,9 +25,9 @@ endif
 cat >! $MPAS_NML << EOF
 &velocity_solver
     config_velocity_solver = 'sia'
-    config_sia_tangent_slope_calculation = 'from_vertex_barycentric'
-    config_flowParamA_calculation = 'constant'
-    config_do_velocity_reconstruction_for_external_dycore = .false.
+!    config_sia_tangent_slope_calculation = 'from_vertex_barycentric'
+!    config_flowParamA_calculation = 'constant'
+!    config_do_velocity_reconstruction_for_external_dycore = .false.
 /
 
 &advection
@@ -35,12 +36,12 @@ cat >! $MPAS_NML << EOF
 /
 
 &physical_parameters
-    config_ice_density = 910.0
-    config_ocean_density = 1028.0
-    config_sea_level = 0.0
-    config_default_flowParamA = 3.1709792e-24
-    config_enhancementFactor = 1.0
-    config_flowLawExponent = 3.0
+!    config_ice_density = 910.0
+!    config_ocean_density = 1028.0
+!    config_sea_level = 0.0
+!    config_default_flowParamA = 3.1709792e-24
+!    config_enhancementFactor = 1.0
+!    config_flowLawExponent = 3.0
     config_dynamic_thickness = 100.0
 /
 
@@ -54,7 +55,7 @@ cat >! $MPAS_NML << EOF
     config_start_time = '$config_start_time'
     config_stop_time = 'none'
     config_run_duration = '0010_00:00:00'
-    config_calendar_type = 'gregorian_noleap'
+!    config_calendar_type = 'gregorian_noleap'
 /
 
 &io
@@ -77,11 +78,11 @@ cat >! $MPAS_NML << EOF
 
 &debug
     config_print_thickness_advection_info = .false.
-    config_always_compute_fem_grid = .false.
+!    config_always_compute_fem_grid = .false.
 /
 EOF
 
-/bin/cp $CASEROOT/CaseDocs/mpasli.in $RUNDIR
+/bin/cp $CASEROOT/CaseDocs/mpasli_in $RUNDIR
 
 
 
