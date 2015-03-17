@@ -15,7 +15,7 @@ cd $OBJROOT/glc/source
 cp -fpR $CODEROOT/glc/mpas-li/model/src/* .
 cp -fpR $CODEROOT/glc/mpas-li/driver glc_acme_driver
 
-make all CORE=landice ESM=true DRIVER=glc_acme_driver || exit 5
+make all CORE=landice ESM=true DRIVER=glc_acme_driver MPAS_NAMELIST_SUFFIX=landice || exit 5
 
 ## COPY ALL MODULE FILES TO THE OCEAN OBJ DIRECTORY ##
 find . -name "*.mod" -exec cp -p {} $OBJROOT/glc/obj/. \;
