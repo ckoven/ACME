@@ -70,7 +70,7 @@ module glc_comp_mct
 
   ! MPAS Datatypes
   type (dm_info), pointer :: dminfo
-  type (domain_type), save, pointer:: domain
+  type (domain_type), pointer:: domain
   type (MPAS_streamManager_type), pointer :: stream_manager
   integer :: itimestep, &  ! time step number for MPAS
              glc_cpl_dt    ! length of coupling interval in seconds?
@@ -94,7 +94,7 @@ contains
     use iso_c_binding, only : c_char, c_loc, c_ptr, c_int
     use mpas_c_interfacing, only : mpas_f_to_c_string, mpas_c_to_f_string
     use mpas_timekeeping, only : MPAS_Time_type, mpas_get_clock_time, mpas_get_time
-    use mpas_bootstrapping, only : mpas_bootstrap_framework, mpas_setup_immutable_streams
+    use mpas_bootstrapping, only : mpas_bootstrap_framework_phase1, mpas_bootstrap_framework_phase2, mpas_setup_immutable_streams
     use mpas_io_units
 ! !INPUT/OUTPUT PARAMETERS:
 
@@ -364,7 +364,7 @@ contains
     end if
     write(stderrUnit, *) ' ** Attempting to bootstrap MPAS framework using stream: ', trim(mesh_stream)
 
-    call mpas_bootstrap_framework(domain, mesh_filename)
+    call mpas_bootstrap_framework_phase1(domain, mesh_filename)
 
     !
     ! Set up run-time streams
@@ -382,6 +382,8 @@ contains
     end if
 
     my_task = dminfo % my_proc_id
+
+    call mpas_bootstrap_framework_phase2(stream_manager, domain)
 
     call mpas_timer_start("total time")
 
