@@ -87,7 +87,7 @@ EOF
 
 
 set STREAM_NAME = "streams.landice"
-set MPAS_STREAMS = $CASEBUILD/../$STREAM_NAME
+set MPAS_STREAMS = $RUNDIR/$STREAM_NAME
 touch $MPAS_STREAMS
 chmod 644 $MPAS_STREAMS
 
@@ -95,7 +95,7 @@ chmod 644 $MPAS_STREAMS
 	cat >! $MPAS_STREAMS << 'EOF'
 	<streams>
 
-	<immutable_stream name="mesh"
+	<immutable_stream name="basicmesh"
 					  type="none"
 					  filename_template="not-to-be-used.nc"
 	/>
@@ -150,9 +150,6 @@ chmod 644 $MPAS_STREAMS
     <var name="normalVelocity"/>
     <var name="uReconstructX"/>
     <var name="uReconstructY"/>
-    <var name="uReconstructZ"/>
-    <var name="uReconstructZonal"/>
-    <var name="uReconstructMeridional"/>
 
 </stream>
 
