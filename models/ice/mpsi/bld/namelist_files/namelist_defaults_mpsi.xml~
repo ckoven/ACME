@@ -1,0 +1,102 @@
+?xml version="1.0"?>
+
+<namelist_defaults>
+
+<!----------------------------->
+<!--- cice_model settings   --->
+<!----------------------------->
+
+<config_dt            >3600.0             </config_dt>
+<config_calendar_type >360day             </config_calendar_type>
+<config_start_time    >1997-01-01_00:00:00</config_start_time>
+<config_stop_time     >none               </config_stop_time>
+<config_run_duration  >0000_01:00:00      </config_run_duration>
+<config_num_halos     >2                  </config_num_halos>
+
+<!----------------------------->
+<!--- io settings           --->
+<!----------------------------->
+
+<config_input_name             >grid.nc          </config_input_name>
+<config_output_name            >output.nc        </config_output_name>
+<config_restart_name           >restart.nc       </config_restart_name>
+<config_forcing_name           >forcing.nc       </config_forcing_name>
+<config_output_interval        >06:00:00         </config_output_interval>
+<config_frames_per_outfile     >0                </config_frames_per_outfile>
+<config_pio_num_iotasks        >0                </config_pio_num_iotasks>
+<config_pio_stride             >1                </config_pio_stride>
+<config_restart_timestamp_name >restart_timestamp</config_restart_timestamp_name>
+<config_test_case_diag         >false            </config_test_case_diag>
+<config_test_case_diag_type    >none             </config_test_case_diag_type>
+
+<!----------------------------->
+<!--- decomposition settings--->
+<!----------------------------->
+
+<config_block_decomp_file_prefix>graph.info.part.</config_block_decomp_file_prefix>
+<config_number_of_blocks>0</config_number_of_blocks>
+<config_explicit_proc_decomp>.false.</config_explicit_proc_decomp>
+<config_proc_decomp_file_prefix>graph.info.part.</config_proc_decomp_file_prefix>
+
+<!----------------------------->
+<!--- restart settings      --->
+<!----------------------------->
+
+<config_do_restart>.false.</config_do_restart>
+<config_restart_interval>none</config_restart_interval>
+
+<!----------------------------->
+<!--- initialize settings   --->
+<!----------------------------->
+
+<config_initial_condition_type>uniform</config_initial_condition_type>
+<config_initial_ice_area>0.0</config_initial_ice_area>
+<config_initial_ice_volume>0.0</config_initial_ice_volume>
+<config_initial_snow_volume>0.0</config_initial_snow_volume>
+<config_initial_latitude_north>0.0</config_initial_latitude_north>
+<config_initial_latitude_south>0.0</config_initial_latitude_south>
+<config_initial_velocity_type>uniform</config_initial_velocity_type>
+<config_initial_uvelocity>0.0</config_initial_uvelocity>
+<config_initial_vvelocity>0.0</config_initial_vvelocity>
+
+<!----------------------------->
+<!--- use_sections settings --->
+<!----------------------------->
+
+<config_use_velocity_solver>false</config_use_velocity_solver>
+<config_use_advection>false</config_use_advection>
+<config_use_forcing>false</config_use_forcing>
+<config_use_vertical_thermodynamics>false</config_use_vertical_thermodynamics>
+
+<!----------------------------->
+<!--- unit_test settings    --->
+<!----------------------------->
+
+<config_perform_unit_test>false</config_perform_unit_test>
+<config_unit_test_type></config_unit_test_type>
+<config_unit_test_subtype></config_unit_test_subtype>
+
+<!-------------------------------->
+<!--- velocity_solver settings --->
+<!-------------------------------->
+
+<config_rotate_cartesian_grid>true</config_rotate_cartesian_grid>
+<config_elastic_subcycle_number>120</config_elastic_subcycle_number>
+<config_stress_divergence_scheme>weak</config_stress_divergence_scheme>
+<config_variational_basis>wachspress</config_variational_basis>
+<config_evp_damping>true</config_evp_damping>
+
+<!----------------------------->
+<!--- advection settings    --->
+<!----------------------------->
+
+<config_convert_volume_to_thickness>true</config_convert_volume_to_thickness>
+<config_limit_ice_concentration>true</config_limit_ice_concentration>
+<config_conservation_check>true</config_conservation_check>
+<config_clean_tracers>true</config_clean_tracers>
+<config_vert_tracer_adv>stencil</config_vert_tracer_adv>
+<config_vert_tracer_adv_order>2</config_vert_tracer_adv_order>
+<config_horiz_tracer_adv_order>2</config_horiz_tracer_adv_order>
+<config_coef_3rd_order>0.25</config_coef_3rd_order>
+<config_monotonic>.true.</config_monotonic>
+

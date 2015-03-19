@@ -1,0 +1,521 @@
+<?xml version="1.0"?>
+
+<namelist_definition>
+
+<!-- Each namelist variable is defined in an <entry> element.  The
+     content of the element is the documentation of how the variable is
+     used.  Other aspects of the variable's definition are expressed as
+     attributes of the <entry> element.  Note that it is an XML requirement
+     that the attribute values are enclosed in quotes.  The attributes are:
+
+     id
+          The variable's name.  *** N.B. *** The name must be lower case.
+          The module convert all namelist variable names to lower case
+          since Fortran is case insensitive.
+
+     type
+          An abbreviation of the fortran declaration for the variable.
+	  Valid declarations are:
+
+          char*n  
+	  integer
+	  logical
+	  real
+
+	  Any of these types may be followed by a comma separated list of
+	  integers enclosed in parenthesis to indicate an array.
+
+	  The current namelist validation code only distinquishes between
+	  string and non-string types.
+
+     input_pathname
+          Only include this attribute to indicate that the variable
+          contains the pathname of an input dataset. For "abs" and "rel:var_name" below
+          it is assumed that this dataset resides in the CESM inputdata directory tree.  
+
+	  For cice the recognized values are 
+            "abs" - an absolute pathname is required - dataset is assumed ot reside in the
+             CESM input data directory tree
+	    "rel:var_name" - to indicate that the pathname is relative 
+ 	     and that the namelist variable "var_name" contains the absolute 
+	     root directory. Not currently used. Dataset is assumed to reside in the CESM 
+	     input data directory tree.
+	    "stream" - used in prescribed mode to indicate a stream pathname
+             (for stream_fldfilename and stream_domfilename). Dataset is NOT assumed
+             to reside in the CESM input data diretory tree.
+
+     category
+          A category assigned for organizing the documentation.
+
+     group
+          The namelist group that the variable is declared in.
+
+     valid_values
+          This is an optional attribute that is mainly useful for variables
+          that have only a small number of allowed values.
+                                                                        -->
+<!----------------------------->
+<!---Derived namelist input---->
+<!----------------------------->
+
+<!----------------------------->
+<!---Group: cice_model      --->
+<!----------------------------->
+
+<entry 
+id="config_dt" 
+type="real"  
+category="mpas-cice" 
+group="cice_model" >
+Default: 3600.0
+</entry>
+
+<entry 
+id="config_calendar_type" 
+type="char*512"  
+category="mpas-cice" 
+group="cice_model" >
+Default: 360day
+</entry>
+
+<entry 
+id="config_start_time" 
+type="char*512"  
+category="mpas-cice" 
+group="cice_model" >
+Default: 1997-01-01_00:00:00
+</entry>
+
+<entry 
+id="config_stop_time" 
+type="char*512"  
+category="mpas-cice" 
+group="cice_model" >
+Default: none
+</entry>
+
+<entry 
+id="config_run_duration" 
+type="char*512"  
+category="mpas-cice" 
+group="cice_model" >
+Default: 0000_01:00:00
+</entry>
+
+<entry 
+id="config_num_halos" 
+type="integer"  
+category="mpas-cice" 
+group="cice_model" >
+Default: 2
+</entry>
+
+<!----------------------------->
+<!---Group: io              --->
+<!----------------------------->
+
+<entry 
+id="config_input_name" 
+type="char*512"  
+category="mpas-cice" 
+group="io" >
+Default: grid.nc
+</entry>
+
+<entry 
+id="config_output_name" 
+type="char*512"  
+category="mpas-cice" 
+group="io" >
+Default: output.nc
+</entry>
+
+<entry 
+id="config_restart_name" 
+type="char*512"  
+category="mpas-cice" 
+group="io" >
+Default: restart.nc
+</entry>
+
+<entry 
+id="config_forcing_name" 
+type="char*512"  
+category="mpas-cice" 
+group="io" >
+Default: forcing.nc
+</entry>
+
+<entry 
+id="config_output_interval" 
+type="char*512"  
+category="mpas-cice" 
+group="io" >
+Default: 06:00:00
+</entry>
+
+<entry 
+id="config_frames_per_outfile" 
+type="integer"  
+category="mpas-cice" 
+group="io" >
+Default: 0
+</entry>
+
+<entry 
+id="config_pio_num_iotasks" 
+type="integer"  
+category="mpas-cice" 
+group="" >
+Default: 0
+</entry>
+
+<entry 
+id="config_pio_stride" 
+type="integer"  
+category="mpas-cice" 
+group="io" >
+Default: 1
+</entry>
+
+<entry 
+id="config_restart_timestamp_name" 
+type="char*512"  
+category="mpas-cice" 
+group="io" >
+Default: restart_timestamp
+</entry>
+
+<entry 
+id="config_test_case_diag" 
+type="logical"  
+category="mpas-cice" 
+group="io" >
+Default: false
+</entry>
+
+<entry 
+id="config_test_case_diag_type" 
+type="char*512"  
+category="mpas-cice" 
+group="io" >
+Default: none
+</entry>
+
+<!----------------------------->
+<!---Group: decomposition   --->
+<!----------------------------->
+
+<entry 
+id="config_block_decomp_file_prefix" 
+type="char*512"  
+category="mpas-cice" 
+group="decomposition" >
+Default: graph.info.part.
+</entry>
+
+<entry 
+id="config_number_of_blocks" 
+type="integer"  
+category="mpas-cice" 
+group="decomposition" >
+Default: 0
+</entry>
+
+<entry 
+id="config_explicit_proc_decomp" 
+type="logical"  
+category="mpas-cice" 
+group="decomposition" >
+Default: false
+</entry>
+
+<entry 
+id="config_proc_decomp_file_prefix" 
+type="char*512"  
+category="mpas-cice" 
+group="decomposition" >
+Default: graph.info.part.
+</entry>
+
+<!----------------------------->
+<!---Group: restart         --->
+<!----------------------------->
+
+<entry 
+id="config_do_restart" 
+type="logical"  
+category="mpas-cice" 
+group="restart" >
+Default: false
+</entry>
+
+<entry 
+id="config_restart_interval" 
+type="char*512"  
+category="mpas-cice" 
+group="restart" >
+Default: none
+</entry>
+
+<!----------------------------->
+<!---Group: initialize      --->
+<!----------------------------->
+
+<entry 
+id="config_initial_condition_type" 
+type="char*512"  
+category="mpas-cice" 
+group="initialize" >
+Default: uniform
+</entry>
+
+<entry 
+id="config_initial_ice_area" 
+type="real"  
+category="mpas-cice" 
+group="initialize" >
+Default: 0.0
+</entry>
+
+<entry 
+id="config_initial_ice_volume" 
+type="real"  
+category="mpas-cice" 
+group="initialize" >
+Default: 0.0
+</entry>
+
+<entry 
+id="config_initial_snow_volume" 
+type="real"  
+category="mpas-cice" 
+group="initialize" >
+Default: 0.0
+</entry>
+
+<entry 
+id="config_initial_latitude_north" 
+type="real"  
+category="mpas-cice" 
+group="initialize" >
+Default: 0.0
+</entry>
+
+<entry 
+id="config_initial_latitude_south" 
+type="real"  
+category="mpas-cice" 
+group="initialize" >
+Default: 0.0
+</entry>
+
+<entry 
+id="config_initial_velocity_type" 
+type="char*512"  
+category="mpas-cice" 
+group="" >
+Default: uniform
+</entry>
+
+<entry 
+id="config_initial_uvelocity" 
+type="real"  
+category="mpas-cice" 
+group="initialize" >
+Default: 0.0
+</entry>
+
+<entry 
+id="config_initial_vvelocity" 
+type="real"  
+category="mpas-cice" 
+group="initialize" >
+Default: 0.0
+</entry>
+
+<!----------------------------->
+<!---Group: use_sections    --->
+<!----------------------------->
+
+<entry 
+id="config_use_velocity_solver" 
+type="logical"  
+category="mpas-cice" 
+group="use_sections" >
+Default: false
+</entry>
+
+<entry 
+id="config_use_advection" 
+type="logical"  
+category="mpas-cice" 
+group="use_sections" >
+Default: false
+</entry>
+
+<entry 
+id="config_use_forcing" 
+type="logical"  
+category="mpas-cice" 
+group="use_sections" >
+Default: false
+</entry>
+
+<entry 
+id="config_use_vertical_thermodynamics" 
+type="logical"  
+category="mpas-cice" 
+group="use_sections" >
+Default: false
+</entry>
+
+<!----------------------------->
+<!---Group: unit_test       --->
+<!----------------------------->
+
+<entry 
+id="config_perform_unit_test" 
+type="logical"  
+category="mpas-cice" 
+group="unit_test" >
+Default: false
+</entry>
+
+<entry 
+id="config_unit_test_type" 
+type="char*512"  
+category="mpas-cice" 
+group="unit_test" >
+Default: ""
+</entry>
+
+<entry 
+id="config_unit_test_subtype" 
+type="char*512"  
+category="mpas-cice" 
+group="unit_test" >
+Default: ""
+</entry>
+
+<!----------------------------->
+<!---Group: velocity_solver --->
+<!----------------------------->
+
+<entry 
+id="config_rotate_cartesian_grid" 
+type="logical"  
+category="mpas-cice" 
+group="velocity_solver" >
+Default: true
+</entry>
+
+<entry 
+id="config_elastic_subcycle_number" 
+type="integer"  
+category="mpas-cice" 
+group="velocity_solver" >
+Default: 120
+</entry>
+
+<entry 
+id="config_stress_divergence_scheme" 
+type="char*512"  
+category="mpas-cice" 
+group="velocity_solver" >
+Default: weak
+</entry>
+
+<entry 
+id="config_variational_basis" 
+type="char*512"  
+category="mpas-cice" 
+group="velocity_solver" >
+Default: wachspress
+</entry>
+
+<entry 
+id="config_evp_damping" 
+type="logical"  
+category="mpas-cice" 
+group="velocity_solver" >
+Default: true
+</entry>
+
+<!----------------------------->
+<!---Group: advection       --->
+<!----------------------------->
+
+<entry 
+id="config_convert_volume_to_thickness" 
+type="logical"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_limit_ice_concentration" 
+type="logical"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_conservation_check" 
+type="logical"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_clean_tracers" 
+type="logical"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_vert_tracer_adv" 
+type="char*512"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_vert_tracer_adv_order" 
+type="integer"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_horiz_tracer_adv_order" 
+type="integer"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_coef_3rd_order" 
+type="real"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+<entry 
+id="config_monotonic" 
+type="logical"  
+category="mpas-cice" 
+group="advection" >
+Default: 
+</entry>
+
+</namelist_definition>
