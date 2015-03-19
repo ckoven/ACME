@@ -673,12 +673,18 @@ contains
       domain => domain
 
       call mpas_pool_get_config(domain % configs, 'config_restart_timestamp_name', config_restart_timestamp_name)
+      call mpas_pool_get_config(domain % configs, 'config_stats_interval', config_stats_interval)
 
       ! Setup log information.
       call shr_file_getLogUnit (shrlogunit)
       call shr_file_getLogLevel(shrloglev)
       call shr_file_setLogUnit (stdoutUnit)
 
+      ! Get current time
+      currTime = mpas_get_clock_time(domain % clock, MPAS_NOW, err_tmp)
+      err = ior(err, err_tmp)
+
+      ! Get time step interval as an MPAS interval type and set the dt variable accordingly
       timeStepInterval = mpas_get_clock_timestep(domain % clock, ierr=err_tmp)
       err = ior(err,err_tmp)
       call mpas_get_timeInterval(timeStepInterval, dt=dtSeconds)
