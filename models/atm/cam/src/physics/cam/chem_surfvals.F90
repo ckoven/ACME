@@ -12,7 +12,7 @@ module chem_surfvals
    use spmd_utils,     only: masterproc
    use time_manager,   only: get_curr_date, get_start_date, is_end_curr_day, &
                              timemgr_datediff, get_curr_calday
-   use abortutils,     only: endrun
+   use cam_abortutils,     only: endrun
    use netcdf
    use error_messages, only: handle_ncerr  
    use cam_logfile,    only: iulog
@@ -258,8 +258,8 @@ subroutine chem_surfvals_init()
       call flbc_inti( flbc_file, flbc_list, flbc_timing, co2vmr, ch4vmr, n2ovmr, f11vmr, f12vmr )
       call chem_surfvals_set()
    else
-      call endrun ('chem_surfvals_init: input namelist SCENARIO_GHG must be set to either FIXED, RAMPED, RAMP_CO2_ONLY, &
-                    or CHEM_LBC_FILE')
+      call endrun ('chem_surfvals_init: input namelist SCENARIO_GHG must be set to either FIXED,'  // &
+            'RAMPED, RAMP_CO2_ONLY,or CHEM_LBC_FILE')
    endif
 
    if (masterproc) then

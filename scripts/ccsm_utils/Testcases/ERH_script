@@ -16,7 +16,7 @@ endif
 
 #--- clone the main case to create ref1 and ref2 cases
 set CASER0  = ${CASEROOT}
-set CASERR1 = ${CASEROOT}.ref1
+set CASERR1 = ${CASEROOT}/${CASE}.ref1
 set CASE0   = ${CASE}
 
 cd $CCSMROOT/scripts
@@ -121,6 +121,8 @@ source ./Tools/ccsm_getenv
 # Set startdate to start2, set ref date based on ref1 restart
 set refdate2   = `ls -1dt ${DOUTSR1}/rest/*-00000* | head -1 | sed "s/-00000.*//" | sed "s/^.*rest\///" `
 echo "ref2: doing a ${stopn2} ${STOP_OPTION} hybrid startup from $start2 using ref1 ${refdate2}" >>& $TESTSTATUS_LOG 
+
+cp -f env_run.xml env_run.xml.base # save the original settings
 
 #--- setup ref2 case 
 ./xmlchange -file env_run.xml -id RUN_TYPE      -val hybrid
