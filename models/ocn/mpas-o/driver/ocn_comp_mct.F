@@ -24,7 +24,6 @@ module ocn_comp_mct
    use shr_sys_mod
    use shr_pio_mod
    use perf_mod
-   use ocn_communicator,  only: mpi_communicator_ocn
 
    use mpaso_cpl_indices
    use mpaso_mct_vars
@@ -105,7 +104,7 @@ contains
     use iso_c_binding, only : c_char, c_loc, c_ptr, c_int
     use mpas_c_interfacing, only : mpas_f_to_c_string, mpas_c_to_f_string
     use mpas_timekeeping, only : MPAS_Time_type, mpas_get_clock_time, mpas_get_time
-    use mpas_bootstrapping, only : mpas_bootstrap_framework, mpas_setup_immutable_streams
+    use mpas_bootstrapping, only : mpas_bootstrap_framework_phase1, mpas_bootstrap_framework_phase2, mpas_setup_immutable_streams
     use ocn_time_average_coupled
     use mpas_io_units
 ! !INPUT/OUTPUT PARAMETERS:
@@ -135,14 +134,8 @@ contains
 
     integer :: errorCode  ! error code
 
-    integer :: nThreads
-
-    real (kind=RKIND) :: precadj
     character(len=StrKIND) :: cpl_seq_option
 
-    character(len=StrKIND) :: cesm_calendar
-    character(len=StrKIND) :: calendar_name
-    integer :: calendar_id
     type (MPAS_Time_Type) :: currTime
     integer :: iam,ierr 
     integer :: iyear0, imonth0
@@ -161,7 +154,6 @@ contains
                                       averagePool
 
     logical :: exists
-    integer, pointer :: config_frames_per_outfile
 
     character(kind=c_char), dimension(StrKIND+1) :: c_filename       ! StrKIND+1 for C null-termination character
     integer(kind=c_int) :: c_comm
@@ -181,7 +173,6 @@ contains
     type (MPAS_TimeInterval_type) :: filename_interval
     character(len=StrKIND) :: start_timestamp
 
-    logical, pointer :: config_write_output_on_startup
     logical, pointer :: tempLogicalConfig
     character(len=StrKIND), pointer :: tempCharConfig
 
@@ -206,7 +197,6 @@ contains
        end subroutine xml_stream_get_attributes
     end interface
 
-
 !-----------------------------------------------------------------------
 !
 !   set cdata pointers
@@ -222,29 +212,16 @@ contains
     MPASO_MCT_gsMap_o => gsMap_o
     MPASO_MCT_dom_o   => dom_o
 
-    ! Remove after buildnml is building an actual namelist
-    call seq_timemgr_EClockGetData(EClock, calendar=cesm_calendar)
-    if( trim(cesm_calendar) == trim(seq_timemgr_noleap)) then
-       write(calendar_name, *) 'gregorian_noleap'
-    else if( trim(cesm_calendar) == trim(seq_timemgr_gregorian)) then
-       write(calendar_name, *) 'gregorian'
-    end if
-
-     call MPI_comm_rank(mpicom_o,iam,ierr)
+    call MPI_comm_rank(mpicom_o,iam,ierr)
 #if (defined _MEMTRACE)
-     if(iam == 0) then
-         lbnum=1
-         call memmon_dump_fort('memmon.out','ocn_init_mct:start::',lbnum) 
-     endif
+    if(iam == 0) then
+        lbnum=1
+        call memmon_dump_fort('memmon.out','ocn_init_mct:start::',lbnum) 
+    endif
 #endif
 
-     ! Determine coupling type
-     call seq_infodata_GetData(infodata, cpl_seq_option=cpl_seq_option)
-
-     ! The following communicator module variable will be utilized in init_communicate that
-     ! is called by initial - this is done to make the code backwards compatible
-
-     mpi_communicator_ocn = mpicom_o
+    ! Determine coupling type
+    call seq_infodata_GetData(infodata, cpl_seq_option=cpl_seq_option)
 
 !-----------------------------------------------------------------------
 !
@@ -274,8 +251,6 @@ contains
 !   call mpas-o initialization routines
 !
 !-----------------------------------------------------------------------
-!   inst_name   = seq_comm_name(OCNID)
-!   inst_index  = seq_comm_inst(OCNID)
     inst_suffix = seq_comm_suffix(OCNID)
 
     call t_startf('mpas-o_init')
@@ -305,9 +280,7 @@ contains
     call shr_file_setLogUnit (stdout_shr)
 
     domain_ptr => domain
-    !DWJ 01/07/2015 Remove calendar name after buildnml is building an actual namelist
-    call mpas_framework_init(dminfo, domain_ptr, mpi_communicator_ocn, nml_filename, io_system, calendar_name, stdoutUnit=stdout_shr, stderrUnit=stdout_shr)
-    !call mpas_framework_init(dminfo, domain_ptr, mpi_communicator_ocn, nml_filename, io_system, stdoutUnit=stdout_shr, stderrUnit=stdout_shr)
+    call mpas_framework_init(dminfo, domain_ptr, mpicom_o, nml_filename, io_system, stdoutUnit_in=stdout_shr, stderrUnit_in=stdout_shr)
     call mpas_core_setup_packages(domain_ptr % configs, domain_ptr % packages, ierr)
 
     ! Override namelist options based on start type
@@ -391,7 +364,7 @@ contains
     end if
     write(stderrUnit, *) ' ** Attempting to bootstrap MPAS framework using stream: ', trim(mesh_stream)
 
-    call mpas_bootstrap_framework(domain_ptr, mesh_filename)
+    call mpas_bootstrap_framework_phase1(domain_ptr, mesh_filename)
 
     !
     ! Set up run-time streams
@@ -409,6 +382,11 @@ contains
     end if
 
     my_task = dminfo % my_proc_id
+
+    !
+    ! Finalize the setup of blocks and fields
+    !
+    call mpas_bootstrap_framework_phase2(stream_manager, domain_ptr)
 
     call mpas_timer_start("total time")
 
@@ -505,24 +483,24 @@ contains
 
     ! Setup clock for initial runs
     if ( runtype == 'initial' ) then
-      ! Check to see if cpl_seq_option is either tight option ('CESM1_ORIG_TIGHT' or 'CESM1_MOD_TIGHT')
-      if ( trim (cpl_seq_option) == 'CESM1_ORIG' .or. trim(cpl_seq_option) == 'CESM1_MOD' .or. &
-           trim (cpl_seq_option) == 'RASM_OPTION1' .or. trim(cpl_seq_option) == 'RASM_OPTION2') then
-         do while (.not. mpas_is_alarm_ringing(domain_ptr % clock, coupleAlarmID, ierr=ierr))
-            itimestep = itimestep + 1
-            call mpas_advance_clock(domain_ptr % clock)
-         end do
-      end if
+       ! Check to see if cpl_seq_option is either tight option ('CESM1_ORIG_TIGHT' or 'CESM1_MOD_TIGHT')
+       if ( trim (cpl_seq_option) == 'CESM1_ORIG' .or. trim(cpl_seq_option) == 'CESM1_MOD' .or. &
+            trim (cpl_seq_option) == 'RASM_OPTION1' .or. trim(cpl_seq_option) == 'RASM_OPTION2') then
+          do while (.not. mpas_is_alarm_ringing(domain_ptr % clock, coupleAlarmID, ierr=ierr))
+             itimestep = itimestep + 1
+             call mpas_advance_clock(domain_ptr % clock)
+          end do
+       end if
 
-      block_ptr => domain % blocklist
-      do while(associated(block_ptr))
-        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
+       block_ptr => domain % blocklist
+       do while(associated(block_ptr))
+          call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+          call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
 
-        call ocn_time_average_coupled_init(forcingPool)
-        call ocn_time_average_coupled_accumulate(diagnosticsPool, forcingPool)
-        block_ptr => block_ptr % next
-      end do
+          call ocn_time_average_coupled_init(forcingPool)
+          call ocn_time_average_coupled_accumulate(diagnosticsPool, forcingPool)
+          block_ptr => block_ptr % next
+       end do
     end if
 
 !-----------------------------------------------------------------------
@@ -538,17 +516,17 @@ contains
 
     ! Setup clock for initial runs
     if ( runtype == 'continue' ) then
-      block_ptr => domain % blocklist
-      do while(associated(block_ptr))
-        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
-        call mpas_pool_get_subpool(block_ptr % structs, 'average', averagePool)
+       block_ptr => domain % blocklist
+       do while(associated(block_ptr))
+          call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+          call mpas_pool_get_subpool(block_ptr % structs, 'diagnostics', diagnosticsPool)
+          call mpas_pool_get_subpool(block_ptr % structs, 'average', averagePool)
 
-        call ocn_time_average_init(averagePool)
-        call ocn_time_average_coupled_init(forcingPool)
-        call ocn_time_average_coupled_accumulate(diagnosticsPool, forcingPool)
-        block_ptr => block_ptr % next
-      end do
+          call ocn_time_average_init(averagePool)
+          call ocn_time_average_coupled_init(forcingPool)
+          call ocn_time_average_coupled_accumulate(diagnosticsPool, forcingPool)
+          block_ptr => block_ptr % next
+       end do
     end if
 
     call t_stopf ('mpas-o_mct_init')
@@ -586,11 +564,11 @@ contains
 
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
-      call mpas_pool_get_subpool(block_ptr % structs, 'average', averagePool)
+        call mpas_pool_get_subpool(block_ptr % structs, 'average', averagePool)
      
-      call ocn_time_average_init(averagePool)
+        call ocn_time_average_init(averagePool)
 
-      block_ptr => block_ptr % next
+        block_ptr => block_ptr % next
     end do
 
     call ocn_analysis_compute_startup(domain, stream_manager, ierr) 
@@ -631,23 +609,23 @@ contains
 ! !INTERFACE:
   subroutine ocn_run_mct( EClock, cdata_o, x2o_o, o2x_o)!{{{
 
-    use mpas_kind_types
-    use mpas_grid_types
-    use mpas_stream_manager
-    use mpas_timer
-    use ocn_forcing
-    use ocn_time_average_coupled
+      use mpas_kind_types
+      use mpas_grid_types
+      use mpas_stream_manager
+      use mpas_timer
+      use ocn_forcing
+      use ocn_time_average_coupled
 
-    implicit none
+      implicit none
 !
 ! !DESCRIPTION:
 ! Run MPAS-O for one coupling interval
 !
 ! !INPUT/OUTPUT PARAMETERS:
-    type(ESMF_Clock)            , intent(inout) :: EClock
-    type(seq_cdata)             , intent(inout) :: cdata_o
-    type(mct_aVect)             , intent(inout) :: x2o_o
-    type(mct_aVect)             , intent(inout) :: o2x_o
+      type(ESMF_Clock)            , intent(inout) :: EClock
+      type(seq_cdata)             , intent(inout) :: cdata_o
+      type(mct_aVect)             , intent(inout) :: x2o_o
+      type(mct_aVect)             , intent(inout) :: o2x_o
 
 !! !REVISION HISTORY:
 !! Author: Doug Jacobsen
@@ -665,8 +643,7 @@ contains
 
       type (mpas_pool_type), pointer :: meshPool, statePool, forcingPool, averagePool
 
-      type (MPAS_Time_Type) :: currTime, alarmStartTime
-      type (MPAS_TimeInterval_Type) :: alarmTimeStep
+      type (MPAS_Time_Type) :: currTime
       type (domain_type), pointer :: domain_ptr
       character(len=StrKIND) :: timeStamp
       type (MPAS_timeInterval_type) :: timeStep
@@ -693,18 +670,18 @@ contains
       ! Handle writing initial state
       call mpas_pool_get_config(domain_ptr % configs, 'config_write_output_on_startup', config_write_output_on_startup)
       if (config_write_output_on_startup) then
-          call mpas_stream_mgr_write(stream_manager, 'output', forceWriteNow=.true., ierr=ierr)
+         call mpas_stream_mgr_write(stream_manager, 'output', forceWriteNow=.true., ierr=ierr)
 
-          ! Reset config to false, so we don't write the state every coupling interval.
-          config_write_output_on_startup = .false.
-      endif
+         ! Reset config to false, so we don't write the state every coupling interval.
+         config_write_output_on_startup = .false.
+      end if
 
       ! Initialize time average fields
       block_ptr => domain_ptr % blocklist
       do while(associated(block_ptr))
-        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-        call ocn_time_average_coupled_init(forcingPool)
-        block_ptr => block_ptr % next
+         call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+         call ocn_time_average_coupled_init(forcingPool)
+         block_ptr => block_ptr % next
       end do
 
       ! During integration, time level 1 stores the model state at the beginning of the
@@ -724,13 +701,13 @@ contains
          ! Build forcing arrays.
          block_ptr => domain_ptr % blocklist
          do while(associated(block_ptr))
-           call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
-           call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
-           call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+            call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+            call mpas_pool_get_subpool(block_ptr % structs, 'state', statePool)
+            call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
 
-           call ocn_forcing_build_arrays(meshPool, statePool, forcingPool, ierr, 1)
-           call ocn_forcing_build_transmission_array(meshPool, statePool, forcingPool, ierr, 1)
-           block_ptr => block_ptr % next
+            call ocn_forcing_build_arrays(meshPool, statePool, forcingPool, ierr, 1)
+            call ocn_forcing_build_transmission_array(meshPool, statePool, forcingPool, ierr, 1)
+            block_ptr => block_ptr % next
          end do
 
          call mpas_timer_start("time integration", .false., timeIntTimer)
@@ -774,9 +751,9 @@ contains
       ! Normalize time averaged fields
       block_ptr => domain_ptr % blocklist
       do while(associated(block_ptr))
-        call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
-        call ocn_time_average_coupled_normalize(forcingPool)
-        block_ptr => block_ptr % next
+         call mpas_pool_get_subpool(block_ptr % structs, 'forcing', forcingPool)
+         call ocn_time_average_coupled_normalize(forcingPool)
+         block_ptr => block_ptr % next
       end do
 
       ! Export state to coupler
@@ -787,7 +764,7 @@ contains
       call mpas_get_time(curr_time=currTime, YYYY=iyear, MM=imonth, DD=iday, H=ihour, M=iminute, S=isecond, ierr=ierr)
       call seq_timemgr_EClockGetData(EClock, curr_ymd=curr_ymd, curr_tod=curr_tod)
  
-      ymd = iyear * 10000 + imonth*100 + iday
+      ymd = iyear * 10000 + imonth * 100 + iday
       tod = ihour * 3600 + iminute * 60 + isecond
       if (.not. seq_timemgr_EClockDateInSync( EClock, ymd, tod)) then
          write(stderrUnit,*) 'MPAS ymd=',ymd,' MPAS tod=', tod
@@ -837,8 +814,7 @@ contains
 
 
     integer :: shrloglev, shrlogunit
-    integer :: &
-       errorCode         ! error code
+    integer :: errorCode
 
     type (domain_type), pointer :: domain_ptr
 
@@ -871,7 +847,7 @@ contains
 
  subroutine ocn_SetGSMap_mct( mpicom_ocn, OCNID, gsMap_ocn )!{{{
 
-   use mpas_dmpar
+    use mpas_dmpar
 
 ! !DESCRIPTION:
 !  This routine sets up the MPAS-O grid numbering for MCT
@@ -894,13 +870,9 @@ contains
 !
 !-----------------------------------------------------------------------
 
-    integer,allocatable :: &
-      gindex(:)
+    integer,allocatable :: gindex(:)
 
-    integer ::   &
-      i,j, k, n, iblock, &
-      lsize, gsize,   &
-      ier
+    integer :: i, n, lsize, gsize, ier
 
     type (block_type), pointer :: block_ptr 
     type (mpas_pool_type), pointer :: meshPool
@@ -980,13 +952,11 @@ contains
 !  local variables
 !
 !-----------------------------------------------------------------------
-
     integer, pointer :: idata(:)
-
     real(kind=RKIND), pointer :: data(:)
     real(kind=RKIND) :: r2d
 
-    integer :: i,j, k, n, ier
+    integer :: i, n, ier
 
     type (block_type), pointer :: block_ptr
 
@@ -1045,53 +1015,53 @@ contains
     n = 0
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
-      call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
 
-      call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
+       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
 
-      call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
+       call mpas_pool_get_array(meshPool, 'lonCell', lonCell)
 
-      do i = 1, nCellsSolve
-        n = n + 1
-        data(n) = lonCell(i) * r2d
-      end do
-      
-      block_ptr => block_ptr % next
+       do i = 1, nCellsSolve
+          n = n + 1
+          data(n) = lonCell(i) * r2d
+       end do
+       
+       block_ptr => block_ptr % next
     end do
     call mct_gGrid_importRattr(dom_o,"lon",data,lsize) 
 
     n = 0
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
-      call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
 
-      call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
+       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
 
-      call mpas_pool_get_array(meshPool, 'latCell', latCell)
+       call mpas_pool_get_array(meshPool, 'latCell', latCell)
 
-      do i = 1, nCellsSolve
-        n = n + 1
-        data(n) = latCell(i) * r2d
-      end do
-      block_ptr => block_ptr % next
+       do i = 1, nCellsSolve
+          n = n + 1
+          data(n) = latCell(i) * r2d
+       end do
+       block_ptr => block_ptr % next
     end do
     call mct_gGrid_importRattr(dom_o,"lat",data,lsize) 
 
     n = 0
     block_ptr => domain % blocklist
     do while(associated(block_ptr))
-      call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
+       call mpas_pool_get_subpool(block_ptr % structs, 'mesh', meshPool)
 
-      call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
+       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
 
-      call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
+       call mpas_pool_get_array(meshPool, 'areaCell', areaCell)
 
-      call mpas_pool_get_config(meshPool, 'sphere_radius', sphere_radius)
-      do i = 1, nCellsSolve
-        n = n + 1
-        data(n) = areaCell(i) / (sphere_radius * sphere_radius)
-      end do
-      block_ptr => block_ptr % next
+       call mpas_pool_get_config(meshPool, 'sphere_radius', sphere_radius)
+       do i = 1, nCellsSolve
+          n = n + 1
+          data(n) = areaCell(i) / (sphere_radius * sphere_radius)
+       end do
+       block_ptr => block_ptr % next
     end do
     call mct_gGrid_importRattr(dom_o,"area",data,lsize) 
 
@@ -1205,9 +1175,9 @@ contains
                                                shortWaveHeatFlux, rainFlux, &
                                                seaSurfacePressure, iceFraction, &
                                                squaredWindSpeed10Meter
+   
+   logical, pointer :: bulkForcingActive
 
-! mrp test
-logical, pointer :: testingPackage
 !----------------------------------------------------------------------- 
 !
 !  zero out padded cells 
@@ -1223,6 +1193,8 @@ logical, pointer :: testingPackage
 !
 !-----------------------------------------------------------------------
 
+   call mpas_pool_get_package(domain % packages, 'bulkForcingActive', bulkForcingActive)
+
    n = 0
    block_ptr => domain % blocklist
    do while(associated(block_ptr))
@@ -1231,6 +1203,88 @@ logical, pointer :: testingPackage
 
       call mpas_pool_get_dimension(meshPool, 'nCellsSolve', nCellsSolve)
 
+      if ( bulkForcingActive ) then
+         call mpas_pool_get_field(forcingPool, 'windStressZonal', windStressZonalField)
+         call mpas_pool_get_field(forcingPool, 'windStressMeridional', windStressMeridionalField)
+         call mpas_pool_get_field(forcingPool, 'latentHeatFlux', latentHeatFluxField)
+         call mpas_pool_get_field(forcingPool, 'sensibleHeatFlux', sensibleHeatFluxField)
+         call mpas_pool_get_field(forcingPool, 'longWaveHeatFluxUp', longWaveHeatFluxUpField)
+         call mpas_pool_get_field(forcingPool, 'longWaveHeatFluxDown', longWaveHeatFluxDownField)
+         call mpas_pool_get_field(forcingPool, 'evaporationFlux', evaporationFluxField)
+         call mpas_pool_get_field(forcingPool, 'seaIceHeatFlux', seaIceHeatFluxField)
+         call mpas_pool_get_field(forcingPool, 'snowFlux', snowFluxField)
+         call mpas_pool_get_field(forcingPool, 'seaIceFreshWaterFlux', seaIceFreshWaterFluxField)
+         call mpas_pool_get_field(forcingPool, 'seaIceSalinityFlux', seaIceSalinityFluxField)
+         call mpas_pool_get_field(forcingPool, 'riverRunoffFlux', riverRunoffFluxField)
+         call mpas_pool_get_field(forcingPool, 'iceRunoffFlux', iceRunoffFluxField)
+         call mpas_pool_get_field(forcingPool, 'shortWaveHeatFlux', shortWaveHeatFluxField)
+         call mpas_pool_get_field(forcingPool, 'rainFlux', rainFluxField)
+         call mpas_pool_get_field(forcingPool, 'seaSurfacePressure', seaSurfacePressureField)
+         call mpas_pool_get_field(forcingPool, 'iceFraction', iceFractionField)
+         call mpas_pool_get_field(forcingPool, 'squaredWindSpeed10Meter', squaredWindSpeed10MeterField)
+         call mpas_pool_get_field(forcingPool, 'iceRunoffFlux', iceRunoffFluxField)
+
+         windStressZonal => windStressZonalField % array
+         windStressMeridional => windStressMeridionalField % array
+         latentHeatFlux => latentHeatFluxField % array
+         sensibleHeatFlux => sensibleHeatFluxField % array
+         longWaveHeatFluxUp => longWaveHeatFluxUpField % array
+         longWaveHeatFluxDown => longWaveHeatFluxDownField % array
+         evaporationFlux => evaporationFluxField % array
+         seaIceHeatFlux => seaIceHeatFluxField % array
+         snowFlux => snowFluxField % array
+         seaIceFreshWaterFlux => seaIceFreshWaterFluxField % array
+         seaIceSalinityFlux => seaIceSalinityFluxField % array
+         riverRunoffFlux => riverRunoffFluxField % array
+         iceRunoffFlux => iceRunoffFluxField % array
+         shortWaveHeatFlux => shortWaveHeatFluxField % array
+         rainFlux => rainFluxField % array
+         seaSurfacePressure => seaSurfacePressureField % array
+         iceFraction => iceFractionField % array
+         squaredWindSpeed10Meter => squaredWindSpeed10MeterField % array
+         iceRunoffFlux => iceRunoffFluxField % array
+
+         do i = 1, nCellsSolve
+           n = n + 1
+           windStressZonal(i) = x2o_o % rAttr(index_x2o_Foxx_taux, n)
+           windStressMeridional(i) = x2o_o % rAttr(index_x2o_Foxx_tauy, n)
+
+           latentHeatFlux(i) = x2o_o % rAttr(index_x2o_Foxx_lat, n)
+           sensibleHeatFlux(i) = x2o_o % rAttr(index_x2o_Foxx_sen, n)
+           longWaveHeatFluxUp(i) = x2o_o % rAttr(index_x2o_Foxx_lwup, n)
+           longWaveHeatFluxDown(i) = x2o_o % rAttr(index_x2o_Faxa_lwdn, n)
+           evaporationFlux(i) = x2o_o % rAttr(index_x2o_Foxx_evap, n)
+           seaIceHeatFlux(i) = x2o_o % rAttr(index_x2o_Fioi_melth, n)
+           snowFlux(i) = x2o_o % rAttr(index_x2o_Faxa_snow, n)
+
+           seaIceFreshWaterFlux(i) = x2o_o % rAttr(index_x2o_Fioi_meltw, n)
+           seaIceSalinityFlux(i) = x2o_o % rAttr(index_x2o_Fioi_salt, n)
+           riverRunoffFlux(i) = x2o_o % rAttr(index_x2o_Foxx_rofl, n)
+           iceRunoffFlux(i) = x2o_o % rAttr(index_x2o_Foxx_rofi, n)
+
+           shortWaveHeatFlux(i) = max(x2o_o % rAttr(index_x2o_Foxx_swnet, n), 0.0_RKIND)
+
+           rainFlux(i) = x2o_o % rAttr(index_x2o_Faxa_rain, n)
+           seaSurfacePressure(i) = x2o_o % rAttr(index_x2o_Sa_pslv, n)
+           iceFraction(i) = x2o_o % rAttr(index_x2o_Si_ifrac, n)
+
+! mrp causes out-of-bounds index error in debug mode
+!          prognosticCO2(i) = x2o_o % rAttr(index_x2o_Sa_co2prog, n)
+!          diagnosticCO2(i) = x2o_o % rAttr(index_x2o_Sa_co2diag, n)
+           squaredWindSpeed10Meter(i) = x2o_o % rAttr(index_x2o_So_duu10n, n)
+
+           if(iceRunoffFlux(n) < 0.0_RKIND) then
+               call shr_sys_abort ('Error: incoming rofi_F is negative')
+           end if
+         end do
+      end if
+
+      block_ptr => block_ptr % next
+   end do
+
+   call mpas_pool_get_subpool(domain % blocklist % structs, 'forcing', forcingPool)
+
+   if ( bulkForcingActive ) then
       call mpas_pool_get_field(forcingPool, 'windStressZonal', windStressZonalField)
       call mpas_pool_get_field(forcingPool, 'windStressMeridional', windStressMeridionalField)
       call mpas_pool_get_field(forcingPool, 'latentHeatFlux', latentHeatFluxField)
@@ -1251,105 +1305,27 @@ logical, pointer :: testingPackage
       call mpas_pool_get_field(forcingPool, 'squaredWindSpeed10Meter', squaredWindSpeed10MeterField)
       call mpas_pool_get_field(forcingPool, 'iceRunoffFlux', iceRunoffFluxField)
 
-      windStressZonal => windStressZonalField % array
-      windStressMeridional => windStressMeridionalField % array
-      latentHeatFlux => latentHeatFluxField % array
-      sensibleHeatFlux => sensibleHeatFluxField % array
-      longWaveHeatFluxUp => longWaveHeatFluxUpField % array
-      longWaveHeatFluxDown => longWaveHeatFluxDownField % array
-      evaporationFlux => evaporationFluxField % array
-      seaIceHeatFlux => seaIceHeatFluxField % array
-      snowFlux => snowFluxField % array
-      seaIceFreshWaterFlux => seaIceFreshWaterFluxField % array
-      seaIceSalinityFlux => seaIceSalinityFluxField % array
-      riverRunoffFlux => riverRunoffFluxField % array
-      iceRunoffFlux => iceRunoffFluxField % array
-      shortWaveHeatFlux => shortWaveHeatFluxField % array
-      rainFlux => rainFluxField % array
-      seaSurfacePressure => seaSurfacePressureField % array
-      iceFraction => iceFractionField % array
-      squaredWindSpeed10Meter => squaredWindSpeed10MeterField % array
-      iceRunoffFlux => iceRunoffFluxField % array
-
-      do i = 1, nCellsSolve
-        n = n + 1
-        windStressZonal(i) = x2o_o % rAttr(index_x2o_Foxx_taux, n)
-        windStressMeridional(i) = x2o_o % rAttr(index_x2o_Foxx_tauy, n)
-
-        latentHeatFlux(i) = x2o_o % rAttr(index_x2o_Foxx_lat, n)
-        sensibleHeatFlux(i) = x2o_o % rAttr(index_x2o_Foxx_sen, n)
-        longWaveHeatFluxUp(i) = x2o_o % rAttr(index_x2o_Foxx_lwup, n)
-        longWaveHeatFluxDown(i) = x2o_o % rAttr(index_x2o_Faxa_lwdn, n)
-        evaporationFlux(i) = x2o_o % rAttr(index_x2o_Foxx_evap, n)
-        seaIceHeatFlux(i) = x2o_o % rAttr(index_x2o_Fioi_melth, n)
-        snowFlux(i) = x2o_o % rAttr(index_x2o_Faxa_snow, n)
-
-        seaIceFreshWaterFlux(i) = x2o_o % rAttr(index_x2o_Fioi_meltw, n)
-        seaIceSalinityFlux(i) = x2o_o % rAttr(index_x2o_Fioi_salt, n)
-        riverRunoffFlux(i) = x2o_o % rAttr(index_x2o_Foxx_rofl, n)
-        iceRunoffFlux(i) = x2o_o % rAttr(index_x2o_Foxx_rofi, n)
-
-        shortWaveHeatFlux(i) = max(x2o_o % rAttr(index_x2o_Foxx_swnet, n), 0.0_RKIND)
-
-        rainFlux(i) = x2o_o % rAttr(index_x2o_Faxa_rain, n)
-        seaSurfacePressure(i) = x2o_o % rAttr(index_x2o_Sa_pslv, n)
-        iceFraction(i) = x2o_o % rAttr(index_x2o_Si_ifrac, n)
-
-! mrp causes out-of-bounds index error in debug mode
-!       prognosticCO2(i) = x2o_o % rAttr(index_x2o_Sa_co2prog, n)
-!       diagnosticCO2(i) = x2o_o % rAttr(index_x2o_Sa_co2diag, n)
-        squaredWindSpeed10Meter(i) = x2o_o % rAttr(index_x2o_So_duu10n, n)
-
-        if(iceRunoffFlux(n) < 0.0_RKIND) then
-            call shr_sys_abort ('Error: incoming rofi_F is negative')
-        end if
-      end do
-
-      block_ptr => block_ptr % next
-   end do
-
-   call mpas_pool_get_subpool(domain % blocklist % structs, 'forcing', forcingPool)
-
-   call mpas_pool_get_field(forcingPool, 'windStressZonal', windStressZonalField)
-   call mpas_pool_get_field(forcingPool, 'windStressMeridional', windStressMeridionalField)
-   call mpas_pool_get_field(forcingPool, 'latentHeatFlux', latentHeatFluxField)
-   call mpas_pool_get_field(forcingPool, 'sensibleHeatFlux', sensibleHeatFluxField)
-   call mpas_pool_get_field(forcingPool, 'longWaveHeatFluxUp', longWaveHeatFluxUpField)
-   call mpas_pool_get_field(forcingPool, 'longWaveHeatFluxDown', longWaveHeatFluxDownField)
-   call mpas_pool_get_field(forcingPool, 'evaporationFlux', evaporationFluxField)
-   call mpas_pool_get_field(forcingPool, 'seaIceHeatFlux', seaIceHeatFluxField)
-   call mpas_pool_get_field(forcingPool, 'snowFlux', snowFluxField)
-   call mpas_pool_get_field(forcingPool, 'seaIceFreshWaterFlux', seaIceFreshWaterFluxField)
-   call mpas_pool_get_field(forcingPool, 'seaIceSalinityFlux', seaIceSalinityFluxField)
-   call mpas_pool_get_field(forcingPool, 'riverRunoffFlux', riverRunoffFluxField)
-   call mpas_pool_get_field(forcingPool, 'iceRunoffFlux', iceRunoffFluxField)
-   call mpas_pool_get_field(forcingPool, 'shortWaveHeatFlux', shortWaveHeatFluxField)
-   call mpas_pool_get_field(forcingPool, 'rainFlux', rainFluxField)
-   call mpas_pool_get_field(forcingPool, 'seaSurfacePressure', seaSurfacePressureField)
-   call mpas_pool_get_field(forcingPool, 'iceFraction', iceFractionField)
-   call mpas_pool_get_field(forcingPool, 'squaredWindSpeed10Meter', squaredWindSpeed10MeterField)
-   call mpas_pool_get_field(forcingPool, 'iceRunoffFlux', iceRunoffFluxField)
-
-   call mpas_dmpar_exch_halo_field(windStressMeridionalField)
-   call mpas_dmpar_exch_halo_field(windStressZonalField)
-   call mpas_dmpar_exch_halo_field(latentHeatFluxField)
-   call mpas_dmpar_exch_halo_field(sensibleHeatFluxField)
-   call mpas_dmpar_exch_halo_field(longWaveHeatFluxUpField)
-   call mpas_dmpar_exch_halo_field(longWaveHeatFluxDownField)
-   call mpas_dmpar_exch_halo_field(evaporationFluxField)
-   call mpas_dmpar_exch_halo_field(seaIceHeatFluxField)
-   call mpas_dmpar_exch_halo_field(snowFluxField)
-   call mpas_dmpar_exch_halo_field(seaIceFreshWaterFluxField)
-   call mpas_dmpar_exch_halo_field(seaIceSalinityFluxField)
-   call mpas_dmpar_exch_halo_field(riverRunoffFluxField)
-   call mpas_dmpar_exch_halo_field(iceRunoffFluxField)
-   call mpas_dmpar_exch_halo_field(shortWaveHeatFluxField)
-   call mpas_dmpar_exch_halo_field(rainFluxField)
-   call mpas_dmpar_exch_halo_field(seaSurfacePressureField)
-   call mpas_dmpar_exch_halo_field(iceFractionField)
-!  call mpas_dmpar_exch_halo_field(prognosticCO2Field)
-!  call mpas_dmpar_exch_halo_field(diagnosticCO2Field)
-!  call mpas_dmpar_exch_halo_field(squaredWindSpeed10MeterField)
+      call mpas_dmpar_exch_halo_field(windStressMeridionalField)
+      call mpas_dmpar_exch_halo_field(windStressZonalField)
+      call mpas_dmpar_exch_halo_field(latentHeatFluxField)
+      call mpas_dmpar_exch_halo_field(sensibleHeatFluxField)
+      call mpas_dmpar_exch_halo_field(longWaveHeatFluxUpField)
+      call mpas_dmpar_exch_halo_field(longWaveHeatFluxDownField)
+      call mpas_dmpar_exch_halo_field(evaporationFluxField)
+      call mpas_dmpar_exch_halo_field(seaIceHeatFluxField)
+      call mpas_dmpar_exch_halo_field(snowFluxField)
+      call mpas_dmpar_exch_halo_field(seaIceFreshWaterFluxField)
+      call mpas_dmpar_exch_halo_field(seaIceSalinityFluxField)
+      call mpas_dmpar_exch_halo_field(riverRunoffFluxField)
+      call mpas_dmpar_exch_halo_field(iceRunoffFluxField)
+      call mpas_dmpar_exch_halo_field(shortWaveHeatFluxField)
+      call mpas_dmpar_exch_halo_field(rainFluxField)
+      call mpas_dmpar_exch_halo_field(seaSurfacePressureField)
+      call mpas_dmpar_exch_halo_field(iceFractionField)
+!     call mpas_dmpar_exch_halo_field(prognosticCO2Field)
+!     call mpas_dmpar_exch_halo_field(diagnosticCO2Field)
+!     call mpas_dmpar_exch_halo_field(squaredWindSpeed10MeterField)
+   end if
 
 !-----------------------------------------------------------------------
 !EOC
@@ -1398,7 +1374,11 @@ logical, pointer :: testingPackage
    real (kind=RKIND), dimension(:), pointer :: seaIceEnergy, CO2Flux, DMSFlux, surfaceUpwardCO2Flux
    real (kind=RKIND), dimension(:,:), pointer :: avgTracersSurfaceValue, avgSurfaceVelocity, avgSSHGradient
 
+   logical, pointer :: frazilIceActive
+
    errorcode = 0
+
+   call mpas_pool_get_package(domain % packages, 'frazilIceActive', frazilIceActive)
 
    n = 0
    block_ptr => domain % blocklist
@@ -1418,7 +1398,9 @@ logical, pointer :: testingPackage
      call mpas_pool_get_array(forcingPool, 'avgTracersSurfaceValue', avgTracersSurfaceValue)
      call mpas_pool_get_array(forcingPool, 'avgSurfaceVelocity', avgSurfaceVelocity)
      call mpas_pool_get_array(forcingPool, 'avgSSHGradient', avgSSHGradient)
-     call mpas_pool_get_array(forcingPool, 'seaIceEnergy', seaIceEnergy)
+     if ( frazilIceActive ) then
+        call mpas_pool_get_array(forcingPool, 'seaIceEnergy', seaIceEnergy)
+     end if
 !    call mpas_pool_get_array(forcingPool, 'CO2Flux', CO2Flux)
 !    call mpas_pool_get_array(forcingPool, 'DMSFlux', DMSFlux)
 !    call mpas_pool_get_array(forcingPool, 'surfaceUpwardCO2Flux', surfaceUpwardCO2Flux)
@@ -1433,10 +1415,12 @@ logical, pointer :: testingPackage
 
        o2x_o % rAttr(index_o2x_So_dhdx, n) = avgSSHGradient(index_avgZonalSSHGradient, i)
        o2x_o % rAttr(index_o2x_So_dhdy, n) = avgSSHGradient(index_avgMeridionalSSHGradient, i)
-       o2x_o % rAttr(index_o2x_Fioo_q, n) = seaIceEnergy(i) / ocn_cpl_dt
+       if ( frazilIceActive ) then
+          o2x_o % rAttr(index_o2x_Fioo_q, n) = seaIceEnergy(i) / ocn_cpl_dt
 
-       ! Reset SeaIce Energy
-       seaIceEnergy(i) = 0.0_RKIND
+          ! Reset SeaIce Energy
+          seaIceEnergy(i) = 0.0_RKIND
+       end if
 
 !      o2x_o % rAttr(index_o2x_Faoo_fco2_ocn, n) = CO2Flux(i)
 !      o2x_o % rAttr(index_o2x_Faoo_fdms_ocn, n) = DMSFlux(i)

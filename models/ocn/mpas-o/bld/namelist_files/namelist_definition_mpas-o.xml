@@ -939,12 +939,20 @@ Valid values: .true., .false.
 Default: .true.
 </entry>
 
-<entry id="config_cvmix_kpp_niterate" type="integer"
-	category="cvmix" group="cvmix" >
-Number of iterations used to solve for KPP ocean boundary layer depth
+<entry id="config_use_cvmix_fixed_boundary_layer" type="logical"
+	category="cvmix" group="cvmix">
+If true, boundary layer depth is specified as config_cvmix_kpp_boundary_layer_depth.
 
-Valid values: Any positive integer
-Default: 2
+Valid values: .true., .false.
+Default: .false.
+</entry>
+
+<entry id="config_cvmix_kpp_boundary_layer_depth" type="real"
+	category="cvmix" group="cvmix">
+If config_use_cvmix_fixed_boundary_layer, then KPP OBL calculation is overwritten with this value.
+
+Valid values: Any positive real value.
+Default: 30.0
 </entry>
 
 <entry id="config_cvmix_kpp_criticalBulkRichardsonNumber" type="real"

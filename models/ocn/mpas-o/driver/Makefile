@@ -1,7 +1,6 @@
 .SUFFIXES: .F .o
 
 OBJS = ocn_comp_mct.o \
-       ocn_communicator.o \
        mpaso_cpl_indices.o \
 	   mpaso_mct_vars.o
 
@@ -9,9 +8,7 @@ OCEAN_SHARED_INCLUDES=-I../core_ocean/mode_forward -I../core_ocean/shared -I../c
 
 all: $(OBJS)
 
-ocn_comp_mct.o: ocn_communicator.o mpaso_cpl_indices.o mpaso_mct_vars.o
-
-ocn_communicator.o:
+ocn_comp_mct.o: mpaso_cpl_indices.o mpaso_mct_vars.o
 
 mpaso_cpl_indices.o:
 
