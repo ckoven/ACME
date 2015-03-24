@@ -5,93 +5,66 @@
 
 mkdir -p $CASEROOT/CaseDocs
 
-# Put input .nc file and graph.info.part files into the run directory manually
-echo "NOTE: You must copy the input .nc file and graph.info.part files into the run directory manually"
-#echo $CASEROOT
+if !(-d $EXEROOT/glc/obj ) mkdir -p $EXEROOT/glc/obj || exit 2
+if !(-d $EXEROOT/glc/source) mkdir -p $EXEROOT/glc/source || exit 3
 
-set MPAS_NML = $CASEROOT/CaseDocs/mpasli_in
-touch $MPAS_NML
-chmod 644 $MPAS_NML
+if !(-d $CASEBUILD/mpas-liconf) mkdir -p $CASEBUILD/mpas-liconf || exit 1
+cd $CASEBUILD/mpas-liconf || exit -1
 
-if ($CONTINUE_RUN == 'TRUE') then
-    set config_do_restart = .true.
-    set config_start_time = 'file'
-#    #TODO - config_start_time must not be read in - but obtained from the coupler
-else
-    set config_do_restart = .false.
-    set config_start_time = '0001-01-01_00:00:00' 
+set inst_string = ""
+set STREAM_NAME = "streams.landice"
+set NML_NAME = "mpasli_in"
+
+if (-e $CASEROOT/user_nl_mpasli${inst_string}) then
+	$UTILROOT/Tools/user_nlcreate                                           \
+		-user_nl_file $CASEROOT/user_nl_mpasli${inst_string}                 \
+		-namelist_name mpasli_inparm >! $CASEBUILD/mpas-liconf/cesm_namelist
 endif
 
-cat >! $MPAS_NML << EOF
-&velocity_solver
-    config_velocity_solver = 'sia'
-!    config_sia_tangent_slope_calculation = 'from_vertex_barycentric'
-!    config_flowParamA_calculation = 'constant'
-!    config_do_velocity_reconstruction_for_external_dycore = .false.
-/
+# Check to see if "-preview" flag should be passed
+if ( $?PREVIEW_NML ) then
+	set PREVIEW_FLAG = "-preview"
+else
+	set PREVIEW_FLAG = ""
+endif
 
-&advection
-    config_thickness_advection = 'fo'
-    config_tracer_advection = 'none'
-/
+# Check to see if build-namelist exists in SourceMods
+if (-e $CASEROOT/SourceMods/src.mpas-li/build-namelist) then
+	set BLD_NML_DIR = $CASEROOT/SourceMods/src.mpas-li
+	set CFG_FLAG = "-cfg_dir $CODEROOT/glc/mpas-li/bld"
+else
+	set BLD_NML_DIR = $CODEROOT/glc/mpas-li/bld
+	set CFG_FLAG = ""
+endif
 
-&physical_parameters
-!    config_ice_density = 910.0
-!    config_ocean_density = 1028.0
-!    config_sea_level = 0.0
-!    config_default_flowParamA = 3.1709792e-24
-!    config_enhancementFactor = 1.0
-!    config_flowLawExponent = 3.0
-    config_dynamic_thickness = 100.0
-/
+# Define input_mesh file and graph prefix for mesh
+##GLC_GRID=$ICESHEET_GRID  # eventually the GLC grid will be defined.  For now set it to the ICESHEET_GRID
+if ( $GLC_GRID == '0.9x1.25' ) then
+#	set input_mesh = $DIN_LOC_ROOT/glc/mpas-li/$GLC_GRID/ocean.EC.60-30km.nc
+#	set graph_prefix = $DIN_LOC_ROOT/glc/mpas-li/$GLC_GRID/mpas-li.graph.info
+	set input_mesh = $DIN_LOC_ROOT/glc/mpas-li/mpas-ais/landice_grid.nc
+	set graph_prefix = $DIN_LOC_ROOT/glc/mpas-li/mpas-ais/mpas-li.graph.info
+endif
 
-&time_integration
-    config_dt = '0001-00-00_00:00:00'
-    config_time_integration = 'forward_euler'
-/
-
-&time_management
-    config_do_restart = $config_do_restart
-    config_start_time = '$config_start_time'
-    config_stop_time = 'none'
-    config_run_duration = '0010_00:00:00'
-!    config_calendar_type = 'gregorian_noleap'
-/
-
-&io
-    config_stats_interval = 0
-    config_write_stats_on_startup = .false.
-    config_stats_cell_ID = 1
-    config_write_output_on_startup = .true.
-    config_pio_num_iotasks = 0
-    config_pio_stride = 1
-    config_year_digits = 4
-/
-
-&decomposition
-    config_num_halos = 3
-    config_block_decomp_file_prefix = 'graph.info.part.'
-    config_number_of_blocks = 0
-    config_explicit_proc_decomp = .false.
-    config_proc_decomp_file_prefix = 'graph.info.part.'
-/
-
-&debug
-    config_print_thickness_advection_info = .false.
-!    config_always_compute_fem_grid = .false.
-/
-EOF
-
-/bin/cp $CASEROOT/CaseDocs/mpasli_in $RUNDIR
+# Write mpas-li.input_data_list file
+echo "mesh = $input_mesh" > $CASEBUILD/mpas-li.input_data_list
+#echo "graph1 = $graph_prefix" >> $CASEBUILD/mpas-li.input_data_list
+echo "graph$NTASKS_GLC = $graph_prefix.part.$NTASKS_GLC" >> $CASEBUILD/mpas-li.input_data_list
 
 
 
-set STREAM_NAME = "streams.landice"
+# --------------------------------------
+# Setup streams file
+# --------------------------------------
+
 set MPAS_STREAMS = $RUNDIR/$STREAM_NAME
 touch $MPAS_STREAMS
 chmod 644 $MPAS_STREAMS
 
-# Write streams file
+# Write streams file, if there isn't one in SourceMods
+if (-e $CASEROOT/SourceMods/src.mpas-li/$STREAM_NAME) then
+	cp $CASEROOT/SourceMods/src.mpas-li/$STREAM_NAME $MPAS_STREAMS
+else
 	cat >! $MPAS_STREAMS << 'EOF'
 	<streams>
 
@@ -101,8 +74,16 @@ chmod 644 $MPAS_STREAMS
 	/>
 
 	<immutable_stream name="input"
-					  type="input"
-				  filename_template="landice_grid.nc"
+					type="input"
+'EOF'
+
+	# Breaking file to insert input file location.
+	cat >>! $MPAS_STREAMS << EOF
+
+					  filename_template="$input_mesh"
+EOF
+
+	cat >>! $MPAS_STREAMS << 'EOF'
 					  input_interval="initial_only"/>
 
 	<!--
@@ -157,4 +138,29 @@ chmod 644 $MPAS_STREAMS
 
 'EOF'
 endif # Writing streams file
+
+$BLD_NML_DIR/build-namelist $CFG_FLAG $PREVIEW_FLAG                        \
+		-infile $CASEBUILD/mpas-liconf/cesm_namelist                        \
+		-caseroot $CASEROOT                                                \
+		-casebuild $CASEBUILD                                              \
+		-scriptsroot $SCRIPTSROOT                                          \
+		-inst_string "$inst_string"                                        \
+		-glc_grid "$GLC_GRID" || exit -1
+
+if ( -d ${RUNDIR} ) then
+	cp $CASEBUILD/mpas-liconf/mpasli_in ${RUNDIR}/mpasli_in
+endif
+
+#cp $MPAS_STREAMS $RUNDIR
+
+if ( -e $CASEROOT/CaseDocs/$STREAM_NAME ) then
+	chmod 644 $CASEROOT/CaseDocs/$STREAM_NAME
+endif
+
+if ( -e $CASEROOT/CaseDocs/$NML_NAME ) then
+	chmod 644 $CASEROOT/CaseDocs/$NML_NAME
+endif
+
+cp $MPAS_STREAMS $CASEROOT/CaseDocs/.
+cp $RUNDIR/$NML_NAME $CASEROOT/CaseDocs/.
 

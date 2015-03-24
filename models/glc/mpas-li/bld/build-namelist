@@ -387,7 +387,7 @@ print "MPAS-LI build-namelist: glc_grid is $GLC_GRID \n";
 if ($print>=2) { print "CESM inputdata root directory: $DIN_LOC_ROOT$eol"; }
 
 #-----------------------------------------------------------------------------------------------
-# Determine namelist 
+# Determine namelist
 #-----------------------------------------------------------------------------------------------
 
 ####################################
@@ -412,9 +412,11 @@ if ($CONTINUE_RUN eq 'TRUE') {
 
 add_default($nl, 'config_stats_interval');
 add_default($nl, 'config_write_stats_on_startup');
+add_default($nl, 'config_stats_cell_id');
 add_default($nl, 'config_write_output_on_startup');
 add_default($nl, 'config_pio_num_iotasks');
 add_default($nl, 'config_pio_stride');
+add_default($nl, 'config_year_digits');
 
 ####################################
 # namelist group: time_integration #
@@ -445,6 +447,7 @@ add_default($nl, 'config_tracer_advection');
 ##########################
 
 add_default($nl, 'config_print_thickness_advection_info');
+add_default($nl, 'config_always_compute_fem_grid');
 
 ####################################
 # namelist group: velocity_solver  #
@@ -459,7 +462,13 @@ add_default($nl, 'config_do_velocity_reconstruction_for_external_dycore');
 # namelist group: physical_parameters  #
 ########################################
 
-# To be filled in
+add_default($nl, 'config_ice_density');
+add_default($nl, 'config_ocean_density');
+add_default($nl, 'config_sea_level');
+add_default($nl, 'config_default_flowParamA');
+add_default($nl, 'config_enhancementFactor');
+add_default($nl, 'config_flowLawExponent');
+add_default($nl, 'config_dynamic_thickness');
 
 #-----------------------------------------------------------------------------------------------
 # *** Write output namelist file (mpasli_in) and input dataset list (mpas-li.input_data_list) ***
@@ -485,7 +494,7 @@ for my $var ($nl->get_variable_names('derived')) {
 # Write out all groups  to mpasli_in
 my $outfile = "./mpasli_in";
 $nl->write($outfile, 'groups'=>\@groups);
-if ($print>=2) { print "Writing mpas-li ocean component namelist to $outfile $eol"; }
+if ($print>=2) { print "Writing mpas-li glc component namelist to $outfile $eol"; }
 
 # Write input dataset list.
 check_input_files($DIN_LOC_ROOT, "../mpas-li.input_data_list");
