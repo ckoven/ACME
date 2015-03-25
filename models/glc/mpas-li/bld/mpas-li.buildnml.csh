@@ -37,13 +37,10 @@ else
 	set CFG_FLAG = ""
 endif
 
-# Define input_mesh file and graph prefix for mesh
-##GLC_GRID=$ICESHEET_GRID  # eventually the GLC grid will be defined.  For now set it to the ICESHEET_GRID
-if ( $GLC_GRID == '0.9x1.25' ) then
-#	set input_mesh = $DIN_LOC_ROOT/glc/mpas-li/$GLC_GRID/ocean.EC.60-30km.nc
-#	set graph_prefix = $DIN_LOC_ROOT/glc/mpas-li/$GLC_GRID/mpas-li.graph.info
-	set input_mesh = $DIN_LOC_ROOT/glc/mpas-li/mpas-ais/landice_grid.nc
-	set graph_prefix = $DIN_LOC_ROOT/glc/mpas-li/mpas-ais/mpas-li.graph.info
+# Define input_mesh file and graph prefix for each defined GLC/MPAS-LI mesh
+if ( $GLC_GRID == 'mpas-ais' ) then
+	set input_mesh = $DIN_LOC_ROOT/glc/mpas-li/$GLC_GRID/landice_grid.nc
+	set graph_prefix = $DIN_LOC_ROOT/glc/mpas-li/$GLC_GRID/mpas-li.graph.info
 endif
 
 # Write mpas-li.input_data_list file
