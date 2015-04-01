@@ -28,6 +28,13 @@ CURDIR := $(shell pwd)
 
 RM = rm
 
+
+USER_FC := ifort
+LIB_NETCDF := $(NETCDF_PATH)/lib
+INC_NETCDF := $(NETCDF_PATH)/include
+MOD_NETCDF := $(NETCDF_PATH)/include
+
+
 # Check for the netcdf library and include directories 
 ifeq ($(LIB_NETCDF),$(null))
   LIB_NETCDF := /usr/local/lib

@@ -5,4 +5,3 @@ shr_sys_mod.F90
 shr_const_mod.F90
 shr_log_mod.F90
 shr_infnan_mod.F90
-shr_isnan.c
