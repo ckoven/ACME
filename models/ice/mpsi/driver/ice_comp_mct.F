@@ -148,6 +148,15 @@ contains
     character(len=StrKIND)  :: nml_filename
     character(len=16) :: inst_suffix
     integer :: lbnum
+    logical :: atm_aero
+
+    !!!!AKT!!!! These need to be properly defined in MPAS-CICE when column physics added
+    real(kind=RKIND) :: nextsw_cday ! ice_calendar
+    real(kind=RKIND) :: eccen ! ice_orbital
+    real(kind=RKIND) :: mvelpp ! ice_orbital
+    real(kind=RKIND) :: lambm0 ! ice_orbital
+    real(kind=RKIND) :: obliqr ! ice_orbital
+    !!!!AKT!!!! These need to be properly defined in MPAS-CICE when column physics added
 
     type (MPAS_Time_Type) :: alarmStartTime
     type (MPAS_TimeInterval_Type) :: alarmTimeStep
@@ -210,6 +219,16 @@ contains
 
     call seq_cdata_setptrs(cdata_i, ID=ICEID, mpicom=mpicom_i, &
          gsMap=gsMap_i, dom=dom_i, infodata=infodata)
+
+    ! Determine time of next atmospheric shortwave calculation
+    call seq_infodata_GetData(infodata, nextsw_cday=nextsw_cday )
+
+    ! Determine if aerosols are coming from the coupler
+    call seq_infodata_GetData(infodata, atm_aero=atm_aero )
+
+    ! Determine orbital parameters
+    call seq_infodata_GetData(infodata, orb_eccen=eccen, orb_mvelpp=mvelpp, &
+         orb_lambm0=lambm0, orb_obliqr=obliqr)
 
     MPSI_MCT_ICEID =  ICEID
     MPSI_MCT_gsMap_i => gsMap_i
@@ -488,13 +507,14 @@ contains
     ! Setup clock for initial runs
     if ( runtype == 'initial' ) then
       ! Check to see if cpl_seq_option is either tight option ('CESM1_ORIG_TIGHT' or 'CESM1_MOD_TIGHT')
-      if ( trim (cpl_seq_option) == 'CESM1_ORIG' .or. trim(cpl_seq_option) == 'CESM1_MOD' .or. &
-           trim (cpl_seq_option) == 'RASM_OPTION1' .or. trim(cpl_seq_option) == 'RASM_OPTION2') then
+      !!!!AKT!!!! These cpl_seq_option dont seem to be defined for CICE
+      !if ( trim (cpl_seq_option) == 'CESM1_ORIG' .or. trim(cpl_seq_option) == 'CESM1_MOD' .or. &
+      !     trim (cpl_seq_option) == 'RASM_OPTION1' .or. trim(cpl_seq_option) == 'RASM_OPTION2') then
          do while (.not. mpas_is_alarm_ringing(domain_ptr % clock, coupleAlarmID, ierr=ierr))
             itimestep = itimestep + 1
             call mpas_advance_clock(domain_ptr % clock)
          end do
-      end if
+      !end if
     end if
 
 !-----------------------------------------------------------------------
