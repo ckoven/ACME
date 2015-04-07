@@ -15,7 +15,25 @@ cd $OBJROOT/ocn/source
 cp -fpR $CODEROOT/ocn/mpas-o/model/src/* .
 cp -fpR $CODEROOT/ocn/mpas-o/driver ocean_cesm_driver
 
-make all CORE=ocean MODE=forward ESM=ACME DRIVER=ocean_cesm_driver || exit 5
+if ! ( $CRAY_CPU_TARGET == "" ) then
+	set BACKUP_CRAY_CPU_TARGET = $CRAY_CPU_TARGET
+	unset CRAY_CPU_TARGET
+endif
+
+cd tools
+make all || exit 5
+cd ../
+
+if ! ( $BACKUP_CRAY_CPU_TARGET == "" ) then
+	set CRAY_CPU_TARGET = $BACKUP_CRAY_CPU_TARGET
+	unset BACKUP_CRAY_CPU_TARGET
+endif
+
+if ( `uname -s` == "AIX" ) then
+	make all CORE=ocean MODE=forward ESM=ACME DRIVER=ocean_cesm_driver CPP_DEF_FLAG=-WF,-D || exit 5
+else
+	make all CORE=ocean MODE=forward ESM=ACME DRIVER=ocean_cesm_driver || exit 5
+endif
 
 ## COPY ALL MODULE FILES TO THE OCEAN OBJ DIRECTORY ##
 find . -name "*.mod" -exec cp -p {} $OBJROOT/ocn/obj/. \;
