@@ -15,18 +15,22 @@ cd $OBJROOT/ocn/source
 cp -fpR $CODEROOT/ocn/mpas-o/model/src/* .
 cp -fpR $CODEROOT/ocn/mpas-o/driver ocean_cesm_driver
 
-if ! ( $CRAY_CPU_TARGET == "" ) then
-	set BACKUP_CRAY_CPU_TARGET = $CRAY_CPU_TARGET
-	unset CRAY_CPU_TARGET
+if ( $?CRAY_CPU_TARGET ) then
+	if ! ( "X$CRAY_CPU_TARGET" == "X" ) then
+		set BACKUP_CRAY_CPU_TARGET = $CRAY_CPU_TARGET
+		unset CRAY_CPU_TARGET
+	endif
 endif
 
 cd tools
 make all || exit 5
 cd ../
 
-if ! ( $BACKUP_CRAY_CPU_TARGET == "" ) then
-	set CRAY_CPU_TARGET = $BACKUP_CRAY_CPU_TARGET
-	unset BACKUP_CRAY_CPU_TARGET
+if ( $?BACKUP_CRAY_CPU_TARGET ) then
+	if ! ( "X$BACKUP_CRAY_CPU_TARGET" == "X" ) then
+		set CRAY_CPU_TARGET = $BACKUP_CRAY_CPU_TARGET
+		unset BACKUP_CRAY_CPU_TARGET
+	endif
 endif
 
 if ( `uname -s` == "AIX" ) then

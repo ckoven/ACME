@@ -32,7 +32,6 @@ module ocn_comp_mct
    use mpas_core
    use mpas_kind_types
    use mpas_io_units
-   use mpas_stream_manager, only : MPAS_streamManager_type
    use ocn_constants, only : T0_Kelvin
 
 !
@@ -81,7 +80,6 @@ module ocn_comp_mct
    !! MPAS-O Datatypes
    type (dm_info), pointer :: dminfo
    type (domain_type), save, target:: domain
-   type (MPAS_streamManager_type), pointer :: stream_manager
    integer :: itimestep, ocn_cpl_dt
 
 !=======================================================================
@@ -255,6 +253,7 @@ contains
 
     call t_startf('mpas-o_init')
     nml_filename = "mpaso_in"
+    domain % streams_filename = "streams.ocean_forward"
 
     io_system => shr_pio_getiosys(ocnid)
 
@@ -282,7 +281,7 @@ contains
     domain_ptr => domain
     call mpas_framework_init(dminfo, domain_ptr, mpicom_o, nml_filename, io_system, stdoutUnit_in=stdout_shr, stderrUnit_in=stdout_shr)
     call mpas_core_setup_packages(domain_ptr % configs, domain_ptr % packages, ierr)
-    call mpas_core_setup_decompositions(ierr)
+    call mpas_core_setup_decompositions(domain_ptr, ierr)
 
     ! Override namelist options based on start type
     if (runtype == "initial") then ! Start up run
@@ -370,13 +369,13 @@ contains
     !
     ! Set up run-time streams
     !
-    call MPAS_stream_mgr_init(stream_manager, domain % clock, domain % blocklist % allFields, domain % packages, domain % blocklist % allStructs)
+    call MPAS_stream_mgr_init(domain_ptr % streamManager, domain % clock, domain % blocklist % allFields, domain % packages, domain % blocklist % allStructs)
 
-    call add_stream_attributes(stream_manager, domain)
+    call add_stream_attributes(domain_ptr % streamManager, domain)
 
-    call mpas_setup_immutable_streams(stream_manager)
+    call mpas_setup_immutable_streams(domain_ptr % streamManager)
 
-    mgr_p = c_loc(stream_manager)
+    mgr_p = c_loc(domain_ptr % streamManager)
     call xml_stream_parser(c_filename, mgr_p, c_comm, c_ierr)
     if (c_ierr /= 0) then
        call mpas_dmpar_abort(dminfo)
@@ -387,11 +386,11 @@ contains
     !
     ! Finalize the setup of blocks and fields
     !
-    call mpas_bootstrap_framework_phase2(stream_manager, domain_ptr)
+    call mpas_bootstrap_framework_phase2(domain_ptr)
 
     call mpas_timer_start("total time")
 
-    call mpas_core_init(domain_ptr, stream_manager, timeStamp)
+    call mpas_core_init(domain_ptr, timeStamp)
 
 !-----------------------------------------------------------------------
 !
@@ -572,11 +571,11 @@ contains
         block_ptr => block_ptr % next
     end do
 
-    call ocn_analysis_compute_startup(domain, stream_manager, ierr) 
+    call ocn_analysis_compute_startup(domain, ierr) 
 
     ! Reset all output alarms, to prevent intial time step from writing any output, unless it's ringing.
-    call mpas_stream_mgr_reset_alarms(stream_manager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)
-    call mpas_stream_mgr_reset_alarms(stream_manager, direction=MPAS_STREAM_INPUT, ierr=ierr)
+    call mpas_stream_mgr_reset_alarms(domain_ptr % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+    call mpas_stream_mgr_reset_alarms(domain_ptr % streamManager, direction=MPAS_STREAM_INPUT, ierr=ierr)
 
 !----------------------------------------------------------------------------
 !
@@ -611,7 +610,7 @@ contains
   subroutine ocn_run_mct( EClock, cdata_o, x2o_o, o2x_o)!{{{
 
       use mpas_kind_types
-      use mpas_grid_types
+      use mpas_derived_types
       use mpas_stream_manager
       use mpas_timer
       use ocn_forcing
@@ -671,7 +670,7 @@ contains
       ! Handle writing initial state
       call mpas_pool_get_config(domain_ptr % configs, 'config_write_output_on_startup', config_write_output_on_startup)
       if (config_write_output_on_startup) then
-         call mpas_stream_mgr_write(stream_manager, 'output', forceWriteNow=.true., ierr=ierr)
+         call mpas_stream_mgr_write(domain_ptr % streamManager, 'output', forceWriteNow=.true., ierr=ierr)
 
          ! Reset config to false, so we don't write the state every coupling interval.
          config_write_output_on_startup = .false.
@@ -689,8 +688,8 @@ contains
       !   time step, and time level 2 stores the state advanced dt in time by timestep(...)
       ! This integration loop continues for a single coupling interval.
       do while (.not. mpas_is_alarm_ringing(domain_ptr % clock, coupleAlarmID, ierr=ierr))
-         call mpas_stream_mgr_read(stream_manager, ierr=ierr)
-         call mpas_stream_mgr_reset_alarms(stream_manager, direction=MPAS_STREAM_INPUT, ierr=ierr)
+         call mpas_stream_mgr_read(domain_ptr % streamManager, ierr=ierr)
+         call mpas_stream_mgr_reset_alarms(domain_ptr % streamManager, direction=MPAS_STREAM_INPUT, ierr=ierr)
 
          itimestep = itimestep + 1
          call mpas_advance_clock(domain_ptr % clock)
@@ -723,17 +722,17 @@ contains
             block_ptr => block_ptr % next
          end do
 
-         call ocn_analysis_compute_w_alarms(stream_manager, domain, ierr) 
-         call ocn_analysis_write(stream_manager, ierr)
+         call ocn_analysis_compute_w_alarms(domain_ptr, ierr) 
+         call ocn_analysis_write(domain_ptr % streamManager, ierr)
 
          ! Reset the restart alarm to prevent restart files being written without the coupler requesting it.
-         call mpas_stream_mgr_reset_alarms(stream_manager, streamID='restart', ierr=ierr)
+         call mpas_stream_mgr_reset_alarms(domain_ptr % streamManager, streamID='restart', ierr=ierr)
 
-         call mpas_stream_mgr_write(stream_manager, streamID='output', ierr=ierr)
-         call mpas_stream_mgr_reset_alarms(stream_manager, streamID='output', ierr=ierr)
+         call mpas_stream_mgr_write(domain_ptr % streamManager, streamID='output', ierr=ierr)
+         call mpas_stream_mgr_reset_alarms(domain_ptr % streamManager, streamID='output', ierr=ierr)
 
-         call mpas_stream_mgr_write(stream_manager, ierr=ierr)
-         call mpas_stream_mgr_reset_alarms(stream_manager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)
+         call mpas_stream_mgr_write(domain_ptr % streamManager, ierr=ierr)
+         call mpas_stream_mgr_reset_alarms(domain_ptr % streamManager, direction=MPAS_STREAM_OUTPUT, ierr=ierr)
 
          call shr_sys_flush(stderrUnit)
       end do
@@ -746,7 +745,7 @@ contains
          close(22)
 
          ! Write a restart file, because the coupler asked for it.
-         call mpas_stream_mgr_write(stream_manager, forceWriteNow=.true., streamID='restart', ierr=ierr)
+         call mpas_stream_mgr_write(domain_ptr % streamManager, forceWriteNow=.true., streamID='restart', ierr=ierr)
       end if
 
       ! Normalize time averaged fields
@@ -831,8 +830,8 @@ contains
     ! Finalize MPAS-O
     call mpas_timer_stop("total time")
     call mpas_timer_write()
-    call mpas_core_finalize(domain_ptr, stream_manager)
-    call MPAS_stream_mgr_finalize(stream_manager)
+    call mpas_core_finalize(domain_ptr)
+    call MPAS_stream_mgr_finalize(domain_ptr % streamManager)
     call mpas_framework_finalize(dminfo, domain_ptr, io_system)
 
     ! Reset I/O logs
