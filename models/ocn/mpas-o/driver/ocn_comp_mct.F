@@ -79,7 +79,7 @@ module ocn_comp_mct
 
    !! MPAS-O Datatypes
    type (dm_info), pointer :: dminfo
-   type (domain_type), save, target:: domain
+   type (domain_type), target:: domain
    integer :: itimestep, ocn_cpl_dt
 
 !=======================================================================
