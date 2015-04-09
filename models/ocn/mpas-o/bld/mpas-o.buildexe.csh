@@ -18,7 +18,7 @@ cp -fpR $CODEROOT/ocn/mpas-o/driver ocean_cesm_driver
 if ( $?CRAY_CPU_TARGET ) then
 	if ! ( "X$CRAY_CPU_TARGET" == "X" ) then
 		set BACKUP_CRAY_CPU_TARGET = $CRAY_CPU_TARGET
-		unset CRAY_CPU_TARGET
+		setenv CRAY_CPU_TARGET ""
 	endif
 endif
 
@@ -26,7 +26,7 @@ make build_tools ESM=ACME ROOT_DIR=`pwd`
 
 if ( $?BACKUP_CRAY_CPU_TARGET ) then
 	if ! ( "X$BACKUP_CRAY_CPU_TARGET" == "X" ) then
-		set CRAY_CPU_TARGET = $BACKUP_CRAY_CPU_TARGET
+		setenv CRAY_CPU_TARGET $BACKUP_CRAY_CPU_TARGET
 		unset BACKUP_CRAY_CPU_TARGET
 	endif
 endif
