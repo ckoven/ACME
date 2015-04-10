@@ -260,6 +260,8 @@ contains
     pio_iotype = shr_pio_getiotype(ocnid)
     call MPAS_io_set_iotype(pio_iotype)
 
+    stdout_shr = shr_file_getUnit()
+
     inquire(file='ocn_modelio.nml'//trim(inst_suffix),exist=exists)
     if(exists) then
        call shr_file_setio('ocn_modelio.nml'//trim(inst_suffix),stdout_shr)
